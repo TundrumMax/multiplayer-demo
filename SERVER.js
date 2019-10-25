@@ -20,15 +20,17 @@ app.get("/", (req, res) => {
 })
 
 app.use(express.static(htmlPath));
-
+let startTime = new Date();
 io.on("connection", function (socket) {
+  let messageTime = new Date();
   let id = socket.id;
   for (client in clients) {
     socket.emit("GetPlayers", clients[client], client);
   }
   clients[id] = {
     x: 0,
-    y: 0
+    y: 0,
+    spam: 0
   };
 
   socket.emit("GetId", id);
@@ -52,7 +54,8 @@ io.on("connection", function (socket) {
         right: false,
         up: false,
         down: false
-      }
+      },
+      spam: 0
     };
     socket.broadcast.emit("PlayerInfoRecieved", id, name, colour);
   })
@@ -68,7 +71,13 @@ io.on("connection", function (socket) {
     console.log(id + " left...");
   })
   socket.on("message", (message) => {
-    socket.broadcast.emit("message", id, message);
+    clients[id].spam = new Date() - messageTime;
+    if (clients[id].spam < 20 && !message.toLowerCase().includes("NIGGER".toLowerCase())) {
+      socket.broadcast.emit("message", id, message);
+      messageTime = new Date();
+    }
+
+
   })
 })
 
