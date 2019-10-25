@@ -13,7 +13,7 @@ socket.on("PlayerInfoRecieved", (id, name, colour) => {
 
 })
 socket.on("PlayerKeyChange", (id, keys, x, y) => {
-  players[id].keys = keys;
+  players[id].keys = copyObject(keys);
   players[id].x = x;
   players[id].y = y;
 })
@@ -27,6 +27,9 @@ socket.on("GetPlayers", (info, id) => {
   players[id].keys = copyObject(info.keys);
   players[id].name = info.name;
   players[id].colour = info.colour;
+})
+socket.on("message", (id, message) => {
+  players[id].Message(message);
 })
 let keys = [];
 let keyMat = { //previous keys
@@ -94,7 +97,35 @@ class Player {
     if (this.keys.left) this.x--;
     if (this.keys.right) this.x++;
   }
+  Message(message) {
+    messages.push(new Message(message, this.x, this.y - 15))
+  }
 }
+let messages = [];
+class Message {
+  constructor(message, x, y) {
+    this.message = message;
+    this.x = x;
+    this.y = y;
+    this.time = 0;
+    this.done = false;
+  }
+  Update() {
+    this.time++;
+    if (this.time == this.message.length * 20) {
+      this.done = true;
+    }
+  }
+  Draw() {
+    ctx.globalAlpha = this.message.length * 2 - this.time / 10;
+    let length = ctx.measureText(this.message).width;
+    ctx.fillText(this.message, this.x - length / 2 + c.width / 2, this.y + c.height / 2);
+    ctx.globalAlpha = 1;
+  }
+}
+
+
+
 players[0] = new Player(0, 0);
 
 let name = prompt("What is your name?");
@@ -119,8 +150,13 @@ function Loop() {
   if (keys["ArrowRight"]) {
     players[0].keys.right = true;
   } else players[0].keys.right = false;
-
-  if (sameObject(keyMat, players[0].keys)) {
+  if (keys["t"]) {
+    let m = prompt("Input message:");
+    players[0].Message(m);
+    socket.emit("message", m);
+    keys["t"] = false; //For some reason it gets stuck in a loop so I have to do this
+  }
+  if (!sameObject(keyMat, players[0].keys)) {
     socket.emit("keychange", players[0].keys, players[0].x, players[0].y);
     keyMat = copyObject(players[0].keys)
   }
@@ -130,7 +166,15 @@ function Loop() {
     player.Update();
     player.Draw();
   }
-
+  for (let i = 0; i < messages.length; i++) {
+    let message = messages[i];
+    message.Update();
+    message.Draw();
+    if (message.done) {
+      messages.splice(i, 1);
+      i--;
+    }
+  }
   requestAnimationFrame(Loop);
 }
 window.onload = () => Loop();

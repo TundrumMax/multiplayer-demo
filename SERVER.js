@@ -62,14 +62,17 @@ io.on("connection", function (socket) {
     clients[id].y = y;
     socket.broadcast.emit("PlayerKeyChange", id, keys, x, y);
   })
-  socket.on("disconnect", function () {
+  socket.on("disconnect", () => {
     socket.broadcast.emit("PlayerLeave", id);
     delete clients[id];
     console.log(id + " left...");
   })
+  socket.on("message", (message) => {
+    socket.broadcast.emit("message", id, message);
+  })
 })
 
 
-http.listen(process.env.PORT, function () {
+http.listen(process.env.PORT || 80, function () {
   console.log("Everything is working fine!");
 });
