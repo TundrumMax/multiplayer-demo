@@ -130,6 +130,9 @@ players[0] = new Player(0, 0);
 
 let name = prompt("What is your name?");
 let colour = "hsl(" + Math.random() * 360 + ", 100%, 50%)";
+if (name.length > 50) {
+  name.splice(50, name.length - 50);
+}
 players[0].name = name;
 players[0].colour = colour;
 
@@ -150,8 +153,14 @@ function Loop() {
   if (keys["ArrowRight"]) {
     players[0].keys.right = true;
   } else players[0].keys.right = false;
+  while (messages.length > 20) {
+    messages.shift();
+  }
   if (keys["t"]) {
     let m = prompt("Input message:");
+    if (m.length > 125) {
+      m = "ERROR: this message was too long for the game to handle. LIMIT: 125 CHARS"
+    }
     players[0].Message(m);
     socket.emit("message", m);
     keys["t"] = false; //For some reason it gets stuck in a loop so I have to do this
