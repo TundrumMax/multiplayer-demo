@@ -123,10 +123,10 @@ class Message {
     this.done = false;
   }
   Update() {
-    this.time++;
     if (this.time == this.message.length * 20) {
       this.done = true;
     }
+    this.time++;
   }
   Draw() {
     let length = ctx.measureText(this.message).width;
