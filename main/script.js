@@ -129,8 +129,13 @@ class Message {
     }
   }
   Draw() {
-    ctx.globalAlpha = this.message.length * 2 - this.time / 10;
     let length = ctx.measureText(this.message).width;
+    ctx.globalAlpha = this.message.length * 2 - this.time / 10;
+    ctx.fillStyle = "white";
+    ctx.fillRect(this.x - length / 2 + c.width / 2 - 5, this.y + c.height / 2 - 10, length + 10, 15)
+    ctx.fillStyle = "black";
+
+
     ctx.fillText(this.message, this.x - length / 2 + c.width / 2, this.y + c.height / 2);
     ctx.globalAlpha = 1;
   }
