@@ -39,6 +39,8 @@ io.on("connection", function (socket) {
     socket.emit("GetPlayers", clients[client], client);
   }
   clients[id] = {
+    name: "Choosing a name",
+    colour: null,
     x: 0,
     y: 0,
     spam: 0
@@ -61,8 +63,8 @@ io.on("connection", function (socket) {
     clients[id] = {
       name: name,
       colour: colour,
-      x: 0,
-      y: 0,
+      x: clients[id].x,
+      y: clients[id].y,
       keys: {
         left: false,
         right: false,

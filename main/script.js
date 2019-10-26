@@ -48,7 +48,19 @@ document.addEventListener("keyup", function (e) {
 let c = document.getElementById("canvas");
 let ctx = c.getContext("2d");
 c.width = window.innerWidth;
-c.height = window.innerHeight;
+c.height = window.innerHeight * 0.95;
+
+let textbar = document.getElementById("textbar");
+textbar.onsubmit = () => {
+  let textinput = document.getElementById("textinput");
+
+  let m = textinput.value;
+  players[0].Message(m);
+  socket.emit("message", m);
+  textinput.value = "";
+  textinput.blur();
+  return false;
+}
 
 function sameObject(ob1, ob2) {
   for (i in ob1) { //Go through ob1
@@ -138,7 +150,6 @@ players[0].colour = colour;
 
 socket.emit("sendInfo", name, colour);
 
-
 function Loop() {
   ctx.clearRect(0, 0, c.width, c.height);
   if (keys["ArrowUp"]) {
@@ -157,10 +168,7 @@ function Loop() {
     messages.shift();
   }
   if (keys["t"]) {
-    let m = prompt("Input message:");
-    players[0].Message(m);
-    socket.emit("message", m);
-    keys["t"] = false; //For some reason it gets stuck in a loop so I have to do this
+    document.getElementById("textinput").focus();
   }
   if (!sameObject(keyMat, players[0].keys)) {
     socket.emit("keychange", players[0].keys, players[0].x, players[0].y);
