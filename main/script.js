@@ -158,9 +158,6 @@ function Loop() {
   }
   if (keys["t"]) {
     let m = prompt("Input message:");
-    if (m.length > 125) {
-      m = "ERROR: this message was too long for the game to handle. LIMIT: 125 CHARS"
-    }
     players[0].Message(m);
     socket.emit("message", m);
     keys["t"] = false; //For some reason it gets stuck in a loop so I have to do this
