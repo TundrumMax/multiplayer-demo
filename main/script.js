@@ -27,9 +27,17 @@ socket.on("GetPlayers", (info, id) => {
   players[id].keys = copyObject(info.keys);
   players[id].name = info.name;
   players[id].colour = info.colour;
+  players[id].shapes = info.shapes;
+  players[id].shape = info.shape;
 })
 socket.on("message", (id, message) => {
   players[id].Message(message);
+})
+socket.on("AddLine", (id, x, y) => {
+  players[id].AddLine(x, y);
+})
+socket.on("EndShape", (id) => {
+  players[id].EndShape();
 })
 let keys = [];
 let keyMat = { //previous keys
@@ -44,7 +52,29 @@ document.addEventListener("keydown", function (e) {
 document.addEventListener("keyup", function (e) {
   keys[e.key] = false;
 })
-
+let mouse = {
+  x: 0,
+  y: 0,
+  isDown: false
+};
+document.addEventListener("mousedown", function () {
+  players[0].AddLine(mouse.x, mouse.y);
+  socket.emit("AddLine", mouse.x, mouse.y);
+  mouse.isDown = true;
+})
+document.addEventListener("mouseup", function () {
+  players[0].EndShape();
+  socket.emit("EndShape");
+  mouse.isDown = false;
+})
+document.addEventListener("mousemove", function (e) {
+  mouse.x = e.clientX - c.getBoundingClientRect().left
+  mouse.y = e.clientY - c.getBoundingClientRect().top
+  if (mouse.isDown) {
+    players[0].AddLine(mouse.x, mouse.y);
+    socket.emit("AddLine", mouse.x, mouse.y);
+  }
+})
 let c = document.getElementById("canvas");
 let ctx = c.getContext("2d");
 c.width = window.innerWidth;
@@ -95,6 +125,9 @@ class Player {
       up: false,
       down: false
     }
+    this.shapes = []; //Contains an array of arrays of lines
+    this.shapes[0] = [];
+    this.shape = 0; //Current shape
   }
   Draw() {
     ctx.fillStyle = this.colour;
@@ -111,6 +144,23 @@ class Player {
   }
   Message(message) {
     messages.push(new Message(message, this.x, this.y - 15))
+  }
+  AddLine(x, y) {
+    this.shapes[this.shape].push([x, y]);
+  }
+  EndShape() {
+    this.shape++;
+    this.shapes[this.shape] = [];
+  }
+  DrawShape() {
+    for (let i = 0; i < this.shapes.length; i++) {
+      ctx.beginPath();
+      for (let j = 0; j < this.shapes[i].length; j++) {
+        if (j == 0) ctx.moveTo(this.shapes[i][j][0], this.shapes[i][j][1]);
+        ctx.lineTo(this.shapes[i][j][0], this.shapes[i][j][1]);
+      }
+      ctx.stroke();
+    }
   }
 }
 let messages = [];
@@ -182,6 +232,7 @@ function Loop() {
 
   for (p in players) {
     let player = players[p];
+    player.DrawShape();
     player.Update();
     player.Draw();
   }

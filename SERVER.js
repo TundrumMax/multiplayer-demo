@@ -43,7 +43,17 @@ io.on("connection", function (socket) {
     colour: null,
     x: 0,
     y: 0,
-    spam: 0
+    keys: {
+      left: false,
+      right: false,
+      up: false,
+      down: false
+    },
+    spam: 0,
+    shapes: [
+      []
+    ],
+    shape: 0
   };
 
   socket.emit("GetId", id);
@@ -71,7 +81,11 @@ io.on("connection", function (socket) {
         up: false,
         down: false
       },
-      spam: 0
+      spam: 0,
+      shapes: [
+        []
+      ],
+      shape: 0
     };
     socket.broadcast.emit("PlayerInfoRecieved", id, name, colour);
   })
@@ -97,6 +111,15 @@ io.on("connection", function (socket) {
     }
 
 
+  })
+  socket.on("AddLine", (x, y) => {
+    clients[id].shapes[clients[id].shape].push([x, y]);
+    socket.broadcast.emit("AddLine", id, x, y);
+  })
+  socket.on("EndShape", () => {
+    clients[id].shape++;
+    clients[id].shapes[clients[id].shape] = [];
+    socket.broadcast.emit("EndShape", id)
   })
 })
 
