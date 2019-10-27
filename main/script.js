@@ -156,7 +156,7 @@ class Player {
     for (let i = 0; i < this.shapes.length; i++) {
       ctx.beginPath();
       for (let j = 0; j < this.shapes[i].length; j++) {
-        if (j == 0) ctx.moveTo(this.shapes[i][j][0], this.shapes[i][j][1]);
+        if (j == 0) ctx.moveTo(this.shapes[i][j][0] + c.width / 2, this.shapes[i][j][1] + c.height / 2);
         ctx.lineTo(this.shapes[i][j][0] + c.width / 2, this.shapes[i][j][1] + c.height / 2);
       }
       ctx.stroke();
