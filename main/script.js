@@ -58,8 +58,8 @@ let mouse = {
   isDown: false
 };
 document.addEventListener("mousedown", function () {
-  players[0].AddLine(mouse.x, mouse.y);
-  socket.emit("AddLine", mouse.x, mouse.y);
+  players[0].AddLine(mouse.x - c.width / 2, mouse.y - c.height / 2);
+  socket.emit("AddLine", mouse.x - c.width / 2, mouse.y - c.height / 2);
   mouse.isDown = true;
 })
 document.addEventListener("mouseup", function () {
@@ -71,8 +71,8 @@ document.addEventListener("mousemove", function (e) {
   mouse.x = e.clientX - c.getBoundingClientRect().left
   mouse.y = e.clientY - c.getBoundingClientRect().top
   if (mouse.isDown) {
-    players[0].AddLine(mouse.x, mouse.y);
-    socket.emit("AddLine", mouse.x, mouse.y);
+    players[0].AddLine(mouse.x - c.width / 2, mouse.y - c.height / 2);
+    socket.emit("AddLine", mouse.x - c.width / 2, mouse.y - c.height / 2);
   }
 })
 let c = document.getElementById("canvas");
@@ -157,7 +157,7 @@ class Player {
       ctx.beginPath();
       for (let j = 0; j < this.shapes[i].length; j++) {
         if (j == 0) ctx.moveTo(this.shapes[i][j][0], this.shapes[i][j][1]);
-        ctx.lineTo(this.shapes[i][j][0], this.shapes[i][j][1]);
+        ctx.lineTo(this.shapes[i][j][0] + c.width / 2, this.shapes[i][j][1] + c.height / 2);
       }
       ctx.stroke();
     }
