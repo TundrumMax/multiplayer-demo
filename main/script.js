@@ -1,6 +1,6 @@
 let socket = io();
 let yourId = 0;
-socket.on("GetId", (id) => yourId = id);
+yourId = socket.id;
 socket.on("PlayerJoined", (id) => {
 
   players[id] = new Player(0, 0);

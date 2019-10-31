@@ -56,7 +56,7 @@ io.on("connection", function (socket) {
     shape: 0
   };
 
-  socket.emit("GetId", id);
+  //socket.emit("GetId", id);
 
   console.log(id + " joined!");
 
