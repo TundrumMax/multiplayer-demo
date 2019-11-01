@@ -168,6 +168,7 @@ class Player {
   UndoShape() {
     this.shapes.splice(this.shape - 1, 1);
     this.shape--;
+    this.shape = Math.max(this.shape, 0);
     this.shapes[this.shape] = []
   }
 }
