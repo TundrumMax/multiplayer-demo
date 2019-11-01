@@ -122,8 +122,10 @@ io.on("connection", function (socket) {
     socket.broadcast.emit("EndShape", id)
   })
   socket.on("UndoShape", () => {
-    clients[id].shapes.splice(clients[id].shape, 1);
-    clients[id].shape = clients[id].shapes.length;
+    clients[id].shapes.splice(clients[id].shape - 1, 1);
+    clients[id].shape--;
+    clients[id].shapes[clients[id].shape] = [];
+
     socket.broadcast.emit("UndoShape", id);
   })
 })
