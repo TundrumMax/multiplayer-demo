@@ -39,6 +39,9 @@ socket.on("AddLine", (id, x, y) => {
 socket.on("EndShape", (id) => {
   players[id].EndShape();
 })
+socket.on("UndoShape", id => {
+  players[id].UndoShape();
+})
 let keys = [];
 let keyMat = { //previous keys
   left: false,
@@ -162,6 +165,10 @@ class Player {
       ctx.stroke();
     }
   }
+  UndoShape() {
+    this.shapes.splice(this.shape, 1);
+    this.shape--;
+  }
 }
 let messages = [];
 class Message {
@@ -224,6 +231,10 @@ function Loop() {
   }
   if (keys["t"]) {
     document.getElementById("textinput").focus();
+  }
+  if (keys["Control"] && keys["z"]) {
+    players[0].UndoShape();
+    socket.emit("UndoShape");
   }
   if (!sameObject(keyMat, players[0].keys)) {
     socket.emit("keychange", players[0].keys, players[0].x, players[0].y);
