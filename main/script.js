@@ -167,7 +167,7 @@ class Player {
   }
   UndoShape() {
     this.shapes.splice(this.shape, 1);
-    this.shape--;
+    this.shape = this.shapes.length;
   }
 }
 let messages = [];

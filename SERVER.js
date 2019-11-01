@@ -123,7 +123,7 @@ io.on("connection", function (socket) {
   })
   socket.on("UndoShape", () => {
     clients[id].shapes.splice(clients[id].shape, 1);
-    clients[id].shape--;
+    clients[id].shape = clients[id].shapes.length;
     socket.broadcast.emit("UndoShape", id);
   })
 })
