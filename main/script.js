@@ -212,7 +212,7 @@ players[0].name = name;
 players[0].colour = colour;
 
 socket.emit("sendInfo", name, colour);
-
+let undoPressed = false; //You don't want all of your stuff gone
 function Loop() {
   ctx.clearRect(0, 0, c.width, c.height);
   if (keys["ArrowUp"]) {
@@ -233,9 +233,12 @@ function Loop() {
   if (keys["t"]) {
     document.getElementById("textinput").focus();
   }
-  if (keys["Control"] && keys["z"]) {
+  if (keys["Control"] && keys["z"] && !undoPressed) {
     players[0].UndoShape();
     socket.emit("UndoShape");
+    undoPressed = true;
+  } else if (!keys["Control"] || !keys["z"]) {
+    undoPressed = false;
   }
   if (!sameObject(keyMat, players[0].keys)) {
     socket.emit("keychange", players[0].keys, players[0].x, players[0].y);
