@@ -5,7 +5,7 @@ var http = require('http').createServer(app);
 var htmlPath = path.join(__dirname, "main")
 var io = require('socket.io')(http);
 
-let clients = []; //Indexed by socket id
+let clients = [];
 
 function copyObject(object) {
   let ob = new Object();
@@ -35,8 +35,10 @@ function swearCheck(m, words) {
 io.on("connection", function (socket) {
   let messageTime = new Date();
   let id = socket.id;
+  socket.join("Main");
   for (client in clients) {
-    socket.emit("GetPlayers", clients[client], client);
+    if (clients[client].room == "Main")
+      socket.emit("GetPlayers", clients[client], client);
   }
   clients[id] = {
     name: "Choosing a name",
@@ -53,16 +55,16 @@ io.on("connection", function (socket) {
     shapes: [
       []
     ],
-    shape: 0
+    shape: 0,
+    room: "Main"
   };
 
   //socket.emit("GetId", id);
 
   console.log(id + " joined!");
 
-  socket.broadcast.emit("PlayerJoined", id);
+  socket.to("Main").emit("PlayerJoined", id);
 
-  console.log("Sent Player Join Emit");
 
 
 
@@ -85,18 +87,20 @@ io.on("connection", function (socket) {
       shapes: [
         []
       ],
-      shape: 0
+      shape: 0,
+      room: clients[id].room
     };
-    socket.broadcast.emit("PlayerInfoRecieved", id, name, colour);
+    socket.to(clients[id].room).emit("PlayerInfoRecieved", id, name, colour);
+    console.log(clients[id].room);
   })
   socket.on("keychange", (keys, x, y) => {
     clients[id].keys = copyObject(keys);
     clients[id].x = x;
     clients[id].y = y;
-    socket.broadcast.emit("PlayerKeyChange", id, keys, x, y);
+    socket.to(clients[id].room).emit("PlayerKeyChange", id, keys, x, y);
   })
   socket.on("disconnect", () => {
-    socket.broadcast.emit("PlayerLeave", id);
+    socket.to(clients[id].room).emit("PlayerLeave", id);
     delete clients[id];
     console.log(id + " left...");
   })
@@ -106,7 +110,7 @@ io.on("connection", function (socket) {
     }
     clients[id].spam = new Date() - messageTime;
     if (clients[id].spam < 20 && swearCheck(message, badWords)) {
-      socket.broadcast.emit("message", id, message);
+      socket.to(clients[id].room).emit("message", id, message);
       messageTime = new Date();
     }
 
@@ -114,12 +118,12 @@ io.on("connection", function (socket) {
   })
   socket.on("AddLine", (x, y) => {
     clients[id].shapes[clients[id].shape].push([x, y]);
-    socket.broadcast.emit("AddLine", id, x, y);
+    socket.to("Main").emit("AddLine", id, x, y);
   })
   socket.on("EndShape", () => {
     clients[id].shape++;
     clients[id].shapes[clients[id].shape] = [];
-    socket.broadcast.emit("EndShape", id)
+    socket.to("Main").emit("EndShape", id)
   })
   socket.on("UndoShape", () => {
     clients[id].shapes.splice(clients[id].shape - 1, 1);
@@ -127,7 +131,22 @@ io.on("connection", function (socket) {
     clients[id].shape = Math.max(clients[id].shape, 0);
     clients[id].shapes[clients[id].shape] = [];
 
-    socket.broadcast.emit("UndoShape", id);
+    socket.to("Main").emit("UndoShape", id);
+  })
+  socket.on("ChangeRoom", (room) => {
+    socket.leave(clients[id].room);
+    socket.to(clients[id].room).emit("PlayerLeave", id);
+    console.log(clients[id].name + " left room " + clients[id].room + " and joined " + room);
+    socket.join(room);
+    clients[id].room = room;
+    socket.to(clients[id].room).emit("PlayerJoined", id);
+    socket.to(clients[id].room).emit("PlayerInfoRecieved", id, clients[id].name, clients[id].colour);
+    for (client in clients) {
+      if (clients[client].room == clients[id].room && client != id) {
+        socket.emit("GetPlayers", clients[client], client);
+        socket.emit("PlayerInfoRecieved", client, clients[client].name, clients[client].colour);
+      }
+    }
   })
 })
 

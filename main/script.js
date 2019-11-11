@@ -88,8 +88,22 @@ textbar.onsubmit = () => {
   let textinput = document.getElementById("textinput");
 
   let m = textinput.value;
-  players[0].Message(m);
-  socket.emit("message", m);
+  if (m != "/gun" && m != "/main") {
+    players[0].Message(m);
+    socket.emit("message", m);
+  } else {
+    if (m == "/gun") {
+      socket.emit("ChangeRoom", "GunFight");
+    } else if (m == "/main") {
+      socket.emit("ChangeRoom", "Main");
+    }
+    for (player in players) {
+      if (player != 0) delete players[player];
+    }
+    players[0].x = 0;
+    players[0].y = 0;
+  }
+
   textinput.value = "";
   textinput.blur();
   return false;
