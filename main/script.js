@@ -100,6 +100,11 @@ textbar.onsubmit = () => {
     for (player in players) {
       if (player != 0) delete players[player];
     }
+    for (let i = players[0].shapes.length - 1; i >= 0; i--) {
+      players[0].shapes.splice(i, 1);
+    }
+    players[0].shapes[0] = [];
+    players[0].shape = 0;
     players[0].x = 0;
     players[0].y = 0;
   }

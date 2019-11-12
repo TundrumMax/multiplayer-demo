@@ -134,6 +134,11 @@ io.on("connection", function (socket) {
     socket.to("Main").emit("UndoShape", id);
   })
   socket.on("ChangeRoom", (room) => {
+    for (let i = clients[id].shapes.length - 1; i >= 0; i--) {
+      clients[id].shapes.splice(i, 1);
+    }
+    clients[id].shapes[0] = [];
+    clients[id].shape = 0;
     socket.leave(clients[id].room);
     socket.to(clients[id].room).emit("PlayerLeave", id);
     console.log(clients[id].name + " left room " + clients[id].room + " and joined " + room);
