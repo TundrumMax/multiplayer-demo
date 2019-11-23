@@ -31,7 +31,10 @@ socket.on("GetPlayers", (info, id) => {
   players[id].shape = info.shape;
 })
 socket.on("message", (id, message) => {
-  players[id].Message(message);
+  if (id == socket.id)
+    players[0].Message(message);
+  else
+    players[id].Message(message);
 })
 socket.on("AddLine", (id, x, y) => {
   players[id].AddLine(x, y);
@@ -89,7 +92,6 @@ textbar.onsubmit = () => {
 
   let m = textinput.value;
   if (m != "/gun" && m != "/main") {
-    players[0].Message(m);
     socket.emit("message", m);
   } else {
     if (m == "/gun") {

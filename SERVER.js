@@ -23,13 +23,13 @@ app.use(express.static(htmlPath));
 let startTime = new Date();
 
 //BAD WORDS
-let badWords = "ahole*,anal,anally,anus*,arse*,arss*,ashole*,asshole*,asswipe*,asslick*,*ballsdeep*,*bastard*,biatch*,bish,*bitch*,*blowjob*,*bollock*,*boner,bukkak*,butthole*,buttlick*,buttplug*,buttwipe*,carpetmunch*,chink*,chode*,choad*,clit*,*cnts*,cock*,cok,cokbite*,cokhead*,cokjock*,cokmunch*,coks,coksuck*,coksmoke*,cuck,cuckold,cum,cunnie*,cunnilingus*,cunny*,*cunt*,*dick*,dik,dike*,diks,dildo*,douche*,doosh*,dooch*,*dumbars*,*dumars*,*dumass*,edjaculat*,ejacculat*,ejackulat*,ejaculat*,ejaculit*,ejakulat*,enema*,faeces*,fag*,fap,fapping*,*fatars*,*fatass*,fck*,*fcuk*,feces*,felatio*,felch*,feltch*,flikker*,*foreskin*,*forskin*,*fvck*,*fuck*,*fudgepack*,*fuk*,gaylord,*handjob*,hardon*,*hitler*,hoar,honkey*,*jackars*,*jackass*,*jackoff*,jap,*jerkoff*,jigaboo*,jiss*,*jizz*,kike*,knobjock*,knobrid*,knobsuck*,kooch*,kootch*,kraut*,kunt*,kyke*,*lardars*,*lardass*,lesbo*,lessie*,lezzie*,lezzy*,*masturbat*,minge*,minging*,mofo,muffdive*,munge*,munging*,*nazi*,*negro*,niga,nigg*,niglet*,niqqa,nutsack*,*orgasm*,*orgasum*,panooch,pecker,peanis,peeenis,peeenus,peeenusss,peenis,peenus,peinus,penas,*penis*,penor,penus,phuc,phuck*,phuk*,pissflap,poon,poonani,poonanni,poonanny,poonany,poontang,porn*,pula,pule,punani,punanni,punanny,punany,pusse,pussee,pussie,pussies,pussy,pussying,pussylick*,pussysuck*,poossy*,poossie*,puuke,puuker,queef*,queer*,qweer*,qweir*,recktum*,rectum*,renob,retard*,rimming*,rimjob*,ruski*,sadist*,scank*,schlong*,schmuck*,scrote*,scrotum*,semen*,sex*,shag,shat,shemale*,*shit*,skank*,*slut*,spic,spick,spik,stalin,tard,teets,testic*,tit,tits,titt,titty*,tittie*,twat*,*vagina*,*vaginna*,*vaggina*,*vaagina*,*vagiina*,vag,vags,vaj,vajs,*vajina*,*vulva*,wank*,*whoar*,whoe,*whor*,*B=D*,*B==D*,*B===*,*===D,8===*".toLowerCase().split(",");
+let badWords = " anal ,anally,assipe,asslick,ballsdeep,blowjob,bollock,boner,bukkak,buttlick,buttplug,clit,cock,cokhead,coksuck,cuck,cuckold,cum,cunnilingus,cunt,dildo,ejaculate,fag,fap,fappingforeskin,forskin,gaylord,handjob,jackars,jackass,jackoff,jerkoff,knobjock,knobrid,knobsuck,kooch,kootch,kraut,kut,masturbat,minge,minging,mofo,muffdive,munge,munging,negro,niga,nigg,niglet,niqqa,nutsack,orgasm,orgasum,peenis,peenus,penis,porn,pusse,pussee,pussie,pussies,pussy,pussying,pussylick,pussysuck,poossy,poossie,puuke,puuker,queef,queer,qweer,renob,rimming,rimjob,ruski,scank,scrote,semen,sex,shag,shat,skank,slut,spic,spick,spik,tard,teets,testic,tit,tits,titt,titty,tittie,twat,vagina,vaginna,vaggina,vaagina,vagiina,vag,vags,vaj,vajs,vajina,vulva,wank,whoar,whoe,whor,B=D,B==D,B===,===D,8===".toLowerCase().split(",");
 
-function swearCheck(m, words) {
-  words.forEach(word => {
-    if (m.toLowerCase().includes(word.toLowerCase())) return false;
-  })
-  return true;
+function swearCheck(m, words) { //returns true if it contains a swear word
+  for (word of words) {
+    if (m.toLowerCase().includes(word)) return true;
+  }
+  return false;
 }
 
 io.on("connection", function (socket) {
@@ -69,29 +69,35 @@ io.on("connection", function (socket) {
 
 
   socket.on("sendInfo", (name, colour) => { //Information about the player when they join, such as their colour and their name
-    if (!swearCheck(name, badWords)) {
-      name = "*****";
+    if (swearCheck(name, badWords)) {
+      name = "******";
     }
-    clients[id] = {
-      name: name,
-      colour: colour,
-      x: clients[id].x,
-      y: clients[id].y,
-      keys: {
-        left: false,
-        right: false,
-        up: false,
-        down: false
-      },
-      spam: 0,
-      shapes: [
-        []
-      ],
-      shape: 0,
-      room: clients[id].room
-    };
+    // clients[id] = {
+    //   name: name,
+    //   colour: colour,
+    //   x: clients[id].x,
+    //   y: clients[id].y,
+    //   keys: {
+    //     left: false,
+    //     right: false,
+    //     up: false,
+    //     down: false
+    //   },
+    //   spam: 0,
+    //   shapes: [
+    //     []
+    //   ],
+    //   shape: 0,
+    //   room: clients[id].room
+    // };
+    if (clients[id].name != "Choosing a name") {
+      console.log(clients[id].name + " changed their name to " + name + ", and changed their colour to " + colour);
+    } else {
+      console.log(id + " set their name to " + name + ", and set their colour to " + colour);
+    }
+    clients[id].name = name;
+    clients[id].colour = colour;
     socket.to(clients[id].room).emit("PlayerInfoRecieved", id, name, colour);
-    console.log(clients[id].room);
   })
   socket.on("keychange", (keys, x, y) => {
     clients[id].keys = copyObject(keys);
@@ -105,12 +111,16 @@ io.on("connection", function (socket) {
     console.log(id + " left...");
   })
   socket.on("message", (message) => {
+    console.log(clients[id].name + ": " + message);
     if (message.length > 125) {
       message = "ERROR: this message was too long for the game to handle. LIMIT: 125 CHARS"
     }
+    if (swearCheck(message, badWords)) {
+      message = "Warning: this message contained an offensive word, so it was removed"
+    }
     clients[id].spam = new Date() - messageTime;
-    if (clients[id].spam < 20 && swearCheck(message, badWords)) {
-      socket.to(clients[id].room).emit("message", id, message);
+    if (clients[id].spam > 20) {
+      io.in(clients[id].room).emit("message", id, message);
       messageTime = new Date();
     }
 
