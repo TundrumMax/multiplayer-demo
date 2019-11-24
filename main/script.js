@@ -91,24 +91,36 @@ textbar.onsubmit = () => {
   let textinput = document.getElementById("textinput");
 
   let m = textinput.value;
-  if (m != "/gun" && m != "/main") {
+  let isCommand = false;
+  if (m[0] == "/") {
+    isCommand = true;
+  }
+  if (!isCommand) {
     socket.emit("message", m);
   } else {
-    if (m == "/gun") {
-      socket.emit("ChangeRoom", "GunFight");
-    } else if (m == "/main") {
-      socket.emit("ChangeRoom", "Main");
+    let command = m.substring(1, m.length).split(" ");
+    if (command[0] == "goto") { //go to a room
+      if (command[1] == "gun") {
+        socket.emit("ChangeRoom", "GunGame");
+      } else if (command[1] == "main") {
+        socket.emit("ChangeRoom", "Main");
+      }
+      for (player in players) {
+        if (player != 0) delete players[player];
+      }
+      for (let i = players[0].shapes.length - 1; i >= 0; i--) {
+        players[0].shapes.splice(i, 1);
+      }
+      players[0].shapes[0] = [];
+      players[0].shape = 0;
+      players[0].x = 0;
+      players[0].y = 0;
+    } else if (command[0] == "setname") { //change name
+      SetName(command[1]);
+    } else if (command[0] == "setcolour") { //change colour
+      SetColour(command[1]);
     }
-    for (player in players) {
-      if (player != 0) delete players[player];
-    }
-    for (let i = players[0].shapes.length - 1; i >= 0; i--) {
-      players[0].shapes.splice(i, 1);
-    }
-    players[0].shapes[0] = [];
-    players[0].shape = 0;
-    players[0].x = 0;
-    players[0].y = 0;
+
   }
 
   textinput.value = "";
@@ -134,7 +146,15 @@ function copyObject(object) {
   return ob;
 }
 
+function SetName(name) {
+  players[0].name = name;
+  socket.emit("sendInfo", name, players[0].colour);
+}
 
+function SetColour(colour) {
+  players[0].colour = colour;
+  socket.emit("sendInfo", players[0].name, colour);
+}
 
 let players = []; //Players will be indexed by their ID
 class Player {
