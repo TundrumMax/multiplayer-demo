@@ -359,6 +359,8 @@ class Player {
     ctx.moveTo(this.x + c.width / 2, this.y + c.height / 2);
     ctx.lineTo(this.x + x * 30 + c.width / 2, this.y + y * 30 + c.height / 2);
     ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#000";
   }
 }
 let messages = [];
