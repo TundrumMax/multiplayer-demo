@@ -172,6 +172,9 @@ io.on("connection", function (socket) {
   socket.on("ShootGun", (bullet) => { //Actually really bloody simple if you literally take one look at it
     socket.broadcast.emit("ShootGun", bullet, id);
   })
+  socket.on("ChangeWeapon", (weapon) => {
+    socket.broadcast.emit("ChangeWeapon", weapon, id);
+  })
 })
 
 

@@ -52,6 +52,9 @@ socket.on("Rotate", (angle, id) => {
 socket.on("ShootGun", (bullet, id) => {
   players[id].bullets.push(bullet); //the ShootGun() function will just repeat what is already done. This simplifies it.
 })
+socket.on("ChangeWeapon", (weapon) => {
+  players[id].gun = weapon;
+})
 let keys = [];
 let keyMat = { //previous keys
   left: false,
@@ -68,7 +71,8 @@ document.addEventListener("keyup", function (e) {
 let mouse = {
   x: 0,
   y: 0,
-  isDown: false
+  isDown: false,
+  scroll: 0
 };
 document.addEventListener("mousedown", function () {
 
@@ -96,6 +100,12 @@ document.addEventListener("mousemove", function (e) {
       socket.emit("AddLine", mouse.x - c.width / 2, mouse.y - c.height / 2);
     }
   }
+})
+document.addEventListener("wheel", function (e) {
+  players[0].gun += e.deltaY / 100;
+  if (players[0].gun < 0) players[0].gun = 2;
+  players[0].gun %= 3;
+  socket.emit("ChangeWeapon", players[0].gun);
 })
 let c = document.getElementById("canvas");
 let ctx = c.getContext("2d");
@@ -353,11 +363,16 @@ class Player {
   DrawGun() {
     let x = Math.sin(this.angle);
     let y = Math.cos(this.angle);
-    ctx.lineWidth = 3;
+    let thiccness = 3;
+    let length = 30;
+    if (this.gun == 2) thiccness = 5;
+    if (this.gun == 0) length = 15;
+    if (this.gun == 3) length = 30;
+    ctx.lineWidth = thiccness;
     ctx.strokeStyle = "#7F7F7F";
     ctx.beginPath();
     ctx.moveTo(this.x + c.width / 2, this.y + c.height / 2);
-    ctx.lineTo(this.x + x * 30 + c.width / 2, this.y + y * 30 + c.height / 2);
+    ctx.lineTo(this.x + x * length + c.width / 2, this.y + y * length + c.height / 2);
     ctx.stroke();
     ctx.lineWidth = 1;
     ctx.strokeStyle = "#000";
@@ -464,6 +479,17 @@ function Loop() {
       messages.splice(i, 1);
       i--;
     }
+  }
+  if (room == "gun") {
+    ctx.fillStyle = "black";
+    ctx.font = "30px Arial";
+    if (players[0].gun == 0)
+      ctx.fillText("Pistol", 10, c.height - 10);
+    else if (players[0].gun == 1)
+      ctx.fillText("Sniper Rifle", 10, c.height - 10);
+    else if (players[0].gun == 2)
+      ctx.fillText("Rocket Launcher", 10, c.height - 10);
+    ctx.font = "10px Arial";
   }
   requestAnimationFrame(Loop);
 }
