@@ -52,7 +52,7 @@ socket.on("Rotate", (angle, id) => {
 socket.on("ShootGun", (bullet, id) => {
   players[id].bullets.push(bullet); //the ShootGun() function will just repeat what is already done. This simplifies it.
 })
-socket.on("ChangeWeapon", (weapon) => {
+socket.on("ChangeWeapon", (weapon, id) => {
   players[id].gun = weapon;
 })
 let keys = [];
@@ -105,6 +105,7 @@ document.addEventListener("wheel", function (e) {
   players[0].gun += e.deltaY / 100;
   if (players[0].gun < 0) players[0].gun = 2;
   players[0].gun %= 3;
+  players[0].gun = Math.round(players[0].gun);
   socket.emit("ChangeWeapon", players[0].gun);
 })
 let c = document.getElementById("canvas");
@@ -342,7 +343,7 @@ class Player {
       if (this.gun == 2) this.bulletTimer %= 50;
 
       for (let i = 0; i < this.bullets.length; i++) {
-        if (this.gun == 2) this.bullets[i].speed *= 1.05;
+        if (this.bullets[i].type == 2) this.bullets[i].speed *= 1.05;
         let maxIterations = 2;
         let iters = 0;
         while (iters <= maxIterations) {
