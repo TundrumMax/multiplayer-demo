@@ -494,7 +494,7 @@ function Loop() {
   }
   players[0].angle = Math.atan2(mouse.x - players[0].x - c.width / 2, mouse.y - players[0].y - c.height / 2);
   if (Math.abs(players[0].angle - oldAngle) > Math.PI / 180 * 10 && room == "gun") {
-    socket.emit("Rotate", player[0].angle);
+    socket.emit("Rotate", players[0].angle);
     oldAngle = players[0].angle;
   }
   if (players[0].health <= 0) {
