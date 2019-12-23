@@ -214,6 +214,7 @@ class Player {
     this.visualAction = 0;
     this.visualTimer = 0;
     this.score = 0;
+    this.enemy;
   }
   Draw() {
     if (this.visualAction == 0) {
@@ -233,8 +234,8 @@ class Player {
         this.visualAction = 0;
         this.x = 0;
         this.y = 0;
-        this.health = 100;
         this.visualTimer = 0;
+        this.health = 100;
         return;
       }
       ctx.fillStyle = "hsl(" + this.visualTimer + ",100%,50%)";
@@ -254,9 +255,10 @@ class Player {
     }
 
     if (room == "gun") {
-      if (this.health <= 0) { //ohno you died rip sadface
+      if (this.health <= 0 && this.visualAction == 0) { //ohno you died rip sadface
         this.visualAction = 1;
         this.score = 0;
+        this.enemy.score += 20;
       }
     }
   }
@@ -354,11 +356,11 @@ class Player {
               let yDist = player.y - this.bullets[i].y;
               let dist = Math.sqrt(xDist ** 2 + yDist ** 2);
 
-              if (dist < 10) {
+              if (dist < 10 && player.health > 0) {
                 player.health -= this.bullets[i].damage / 2;
                 player.health = Math.max(player.health, 0);
-                if (player.health <= 0) {
-                  this.score += 20;
+                if (player.health <= 0 && player.visualAction == 0) {
+                  player.enemy = this;
                 }
               }
             }
@@ -524,6 +526,8 @@ function Loop() {
       ctx.fillText("Sniper Rifle", 10, c.height - 10);
     else if (players[0].gun == 2)
       ctx.fillText("Rocket Launcher", 10, c.height - 10);
+
+    ctx.fillText("Score: " + players[0].score, 10, c.height - 50);
     ctx.font = "10px Arial";
   }
   requestAnimationFrame(Loop);
