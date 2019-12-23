@@ -211,25 +211,54 @@ class Player {
     this.bulletTimer = 0;
     this.health = 100;
     this.angle = 0;
+    this.visualAction = 0;
+    this.visualTimer = 0;
+    this.score = 0;
   }
   Draw() {
-    ctx.fillStyle = this.colour;
-    ctx.fillRect((this.x + c.width / 2) - 5, (this.y + c.height / 2) - 5, 10, 10);
-    ctx.fillStyle = "black";
-    let textWidth = ctx.measureText(this.name);
-    ctx.fillText(this.name, (this.x + c.width / 2) - textWidth.width / 2, (this.y + c.height / 2) + 15);
-    if (room == "gun") {
-      ctx.fillStyle = "red";
-      ctx.fillRect((this.x + c.width / 2) - 50, (this.y + c.height / 2) - 30, 100, 10);
-      ctx.fillStyle = "#00ff00";
-      ctx.fillRect((this.x + c.width / 2) - 50, (this.y + c.height / 2) - 30, this.health, 10);
+    if (this.visualAction == 0) {
+      ctx.fillStyle = this.colour;
+      ctx.fillRect((this.x + c.width / 2) - 5, (this.y + c.height / 2) - 5, 10, 10);
+      ctx.fillStyle = "black";
+      let textWidth = ctx.measureText(this.name);
+      ctx.fillText(this.name, (this.x + c.width / 2) - textWidth.width / 2, (this.y + c.height / 2) + 15);
+      if (room == "gun") {
+        ctx.fillStyle = "red";
+        ctx.fillRect((this.x + c.width / 2) - 50, (this.y + c.height / 2) - 30, 100, 10);
+        ctx.fillStyle = "#00ff00";
+        ctx.fillRect((this.x + c.width / 2) - 50, (this.y + c.height / 2) - 30, this.health, 10);
+      }
+    } else if (this.visualAction == 1) {
+      if (this.visualTimer >= 50) {
+        this.visualAction = 0;
+        this.x = 0;
+        this.y = 0;
+        this.health = 100;
+        this.visualTimer = 0;
+        return;
+      }
+      ctx.fillStyle = "hsl(" + this.visualTimer + ",100%,50%)";
+      ctx.beginPath();
+      ctx.arc(this.x + c.width / 2, this.y + c.height / 2, 20 - Math.sqrt(this.visualTimer), 0, 2 * Math.PI);
+      ctx.fill();
+      this.visualTimer++;
     }
+
   }
   Update() {
-    if (this.keys.up) this.y--;
-    if (this.keys.down) this.y++;
-    if (this.keys.left) this.x--;
-    if (this.keys.right) this.x++;
+    if (this.visualAction != 1) {
+      if (this.keys.up) this.y--;
+      if (this.keys.down) this.y++;
+      if (this.keys.left) this.x--;
+      if (this.keys.right) this.x++;
+    }
+
+    if (room == "gun") {
+      if (this.health <= 0) { //ohno you died rip sadface
+        this.visualAction = 1;
+        this.score = 0;
+      }
+    }
   }
   Message(message) {
     messages.push(new Message(message, this.x, this.y - 15))
@@ -328,6 +357,9 @@ class Player {
               if (dist < 10) {
                 player.health -= this.bullets[i].damage / 2;
                 player.health = Math.max(player.health, 0);
+                if (player.health <= 0) {
+                  this.score += 20;
+                }
               }
             }
 
@@ -458,6 +490,9 @@ function Loop() {
   let newAngle = Math.atan2(mouse.x - players[0].x - c.width / 2, mouse.y - players[0].y - c.height / 2);
   if (players[0].angle != newAngle) socket.emit("Rotate", newAngle);
   players[0].angle = newAngle;
+  if (players[0].health <= 0) {
+    players[0].Message("You died...");
+  }
   for (p in players) {
     let player = players[p];
     if (room == "main")
