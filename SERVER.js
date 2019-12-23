@@ -167,13 +167,13 @@ io.on("connection", function (socket) {
   })
   socket.on("Rotate", (angle) => { //will use an angle, seeing as you cant really predict where the player is going to rotate
     clients[id].angle = angle;
-    socket.broadcast.emit("Rotate", angle, id);
+    socket.to(clients[id].room).emit("Rotate", angle, id);
   })
   socket.on("ShootGun", (bullet) => { //Actually really bloody simple if you literally take one look at it
-    socket.broadcast.emit("ShootGun", bullet, id);
+    socket.to(clients[id].room).emit("ShootGun", bullet, id);
   })
   socket.on("ChangeWeapon", (weapon) => {
-    socket.broadcast.emit("ChangeWeapon", weapon, id);
+    socket.to(clients[id].room).emit("ChangeWeapon", weapon, id);
   })
 })
 
