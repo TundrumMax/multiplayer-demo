@@ -458,16 +458,16 @@ let undoPressed = false; //You don't want all of your stuff gone
 function Loop() {
 
   ctx.clearRect(0, 0, c.width, c.height);
-  if (keys["ArrowUp"]) {
+  if (keys["ArrowUp"] || keys["w"]) {
     players[0].keys.up = true;
   } else players[0].keys.up = false;
-  if (keys["ArrowDown"]) {
+  if (keys["ArrowDown"] || keys["s"]) {
     players[0].keys.down = true;
   } else players[0].keys.down = false;
-  if (keys["ArrowLeft"]) {
+  if (keys["ArrowLeft"] || keys["a"]) {
     players[0].keys.left = true;
   } else players[0].keys.left = false;
-  if (keys["ArrowRight"]) {
+  if (keys["ArrowRight"] || keys["d"]) {
     players[0].keys.right = true;
   } else players[0].keys.right = false;
   while (messages.length > 20) {
