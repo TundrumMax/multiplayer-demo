@@ -455,6 +455,8 @@ players[0].colour = colour;
 
 socket.emit("sendInfo", name, colour);
 let undoPressed = false; //You don't want all of your stuff gone
+let oldAngle = 0;
+
 function Loop() {
 
   ctx.clearRect(0, 0, c.width, c.height);
@@ -490,9 +492,11 @@ function Loop() {
     socket.emit("keychange", players[0].keys, players[0].x, players[0].y);
     keyMat = copyObject(players[0].keys)
   }
-  let newAngle = Math.atan2(mouse.x - players[0].x - c.width / 2, mouse.y - players[0].y - c.height / 2);
-  if (players[0].angle != newAngle) socket.emit("Rotate", newAngle);
-  players[0].angle = newAngle;
+  players[0].angle = Math.atan2(mouse.x - players[0].x - c.width / 2, mouse.y - players[0].y - c.height / 2);
+  if (Math.abs(players[0].angle - oldAngle) > Math.PI / 180 * 10) {
+    socket.emit("Rotate", player[0].angle);
+    oldAngle = players[0].angle;
+  }
   if (players[0].health <= 0) {
     players[0].Message("You died...");
   }
