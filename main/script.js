@@ -63,10 +63,12 @@ let keyMat = { //previous keys
   down: false
 }
 document.addEventListener("keydown", function (e) {
-  keys[e.key] = true;
+  if (e.target == document.body)
+    keys[e.key] = true;
 })
 document.addEventListener("keyup", function (e) {
-  keys[e.key] = false;
+  if (e.target == document.body)
+    keys[e.key] = false;
 })
 let mouse = {
   x: 0,
