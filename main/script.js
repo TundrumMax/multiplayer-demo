@@ -13,6 +13,7 @@ socket.on("PlayerInfoRecieved", (id, name, colour) => {
 
 
 })
+//test
 socket.on("PlayerKeyChange", (id, keys, x, y) => {
   players[id].keys = copyObject(keys);
   players[id].x = x;
