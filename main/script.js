@@ -77,7 +77,6 @@ let mouse = {
   scroll: 0
 };
 document.addEventListener("mousedown", function () {
-
   if (room == "main") {
     players[0].AddLine(mouse.x - c.width / 2, mouse.y - c.height / 2);
     socket.emit("AddLine", mouse.x - c.width / 2, mouse.y - c.height / 2);
@@ -162,6 +161,7 @@ textbar.onsubmit = () => {
 
   textinput.value = "";
   textinput.blur();
+  isMessaging = false;
   return false;
 }
 
@@ -509,6 +509,7 @@ let oldAngle = 0;
 let messageTimer = 0; //How long has the message box been there for?
 let scroll = 0; //scroll from the bottom of the chat
 ctx.font = "11px Arial";
+let isMessaging = false;
 
 function Loop() {
 
@@ -531,6 +532,8 @@ function Loop() {
     messages.shift();
   }
   if (keys["t"] || keys["Enter"]) {
+    isMessaging = true;
+    messageTimer = 0;
     document.getElementById("textinput").focus();
   }
   if (keys["Control"] && keys["z"] && !undoPressed) {
@@ -602,7 +605,8 @@ function Loop() {
       ctx.fillText(messages2[i - scroll], 2, c.height - 4 - (messages2.length - i - 1) * 20);
     }
   }
-  // messageTimer++;
+  if (!isMessaging)
+    messageTimer++;
   requestAnimationFrame(Loop);
 }
 window.onload = () => Loop();
