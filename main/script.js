@@ -13,7 +13,6 @@ socket.on("PlayerInfoRecieved", (id, name, colour) => {
 
 
 })
-//test
 socket.on("PlayerKeyChange", (id, keys, x, y) => {
   players[id].keys = copyObject(keys);
   players[id].x = x;
@@ -267,7 +266,55 @@ class Player {
     }
   }
   Message(message) {
-    messages.push(new Message(message, this.x, this.y - 15))
+    messages.push(new Message(message, this.x, this.y - 15));
+
+    message = this.name + ": " + message; //adds the name to the message
+    let newMessages = [];
+
+    for (let i = 0; i < message.length; i++) {
+      let messageLength = ctx.measureText(message.slice(0, i)).width;
+      if (messageLength > c.width / 3 - 4) {
+        i--;
+        newMessages.push(message.slice(0, i));
+        message = message.slice(i, message.length);
+        i = 0;
+      }
+    }
+    if (!newMessages.length || message.length) { //means that the message was short enough not to be cut
+      newMessages.push(message);
+    }
+    for (let i = 0; i < newMessages.length; i++) messages2.push(newMessages[i]);
+
+    // let messageses = []; //yes
+    // for (let i = 0; i < message.length + this.name.length; i++) {
+    //   let messageLength = ctx.measureText((this.name + ": " + message).slice(0, i)).width;
+    //   if (messageLength > c.width / 3 - 4) {
+    //     i--;
+    //     messageses.push((this.name + ": " + message).slice(0, i)); //first string
+    //     message = message.slice(i, message.length);
+    //     break;
+    //   }
+    // }
+    // if (messageses.length) //this means that the message is short anyway
+    //   for (let i = 0; i < message.length; i++) {
+    //     let messageLength = ctx.measureText(message.slice(0, i)).width;
+    //     if (messageLength > c.width / 3 - 4) {
+    //       i--;
+    //       messageses.push(message.splice(0, i));
+    //       message = message.slice(i, message.length);
+    //       i = 0;
+    //     }
+    //   } //im sorry, I need to do a second loop without the name
+    // if (message.length && messageses.length) { //in case there is some of the message left over
+    //   messageses.push(message);
+    // }
+    // if (messageses.length)
+    //   for (let i = 0; i < messageses.length; i++) messages2.push(messageses[i]);
+    // else {
+    //   messages2.push(this.name + ": " + message);
+    // }
+    messageTimer = 0;
+    if (scroll) scroll++;
   }
   AddLine(x, y) {
     if (room == "main")
@@ -416,7 +463,8 @@ class Player {
     ctx.strokeStyle = "#000";
   }
 }
-let messages = [];
+let messages = []; //Stores visual messages that appear above the players head. We want these messages to disappear after a while
+let messages2 = []; //Exactly the same as 'messages', and includes the same messages, but the messages are semi-permanent, and they appear in the message box in the left
 class Message {
   constructor(message, x, y) {
     this.message = message;
@@ -433,10 +481,9 @@ class Message {
   }
   Draw() {
     let length = ctx.measureText(this.message).width;
-    ctx.globalAlpha = this.message.length * 2 - this.time / 10;
-    ctx.fillStyle = "white";
+    ctx.fillStyle = "rgba(255,255,255," + (this.message.length * 2 - this.time / 10) + ")";
     ctx.fillRect(this.x - length / 2 + c.width / 2 - 5, this.y + c.height / 2 - 10, length + 10, 15)
-    ctx.fillStyle = "black";
+    ctx.fillStyle = "rgba(0,0,0," + (this.message.length * 2 - this.time / 10) + ")";
 
 
     ctx.fillText(this.message, this.x - length / 2 + c.width / 2, this.y + c.height / 2);
@@ -451,7 +498,7 @@ players[0] = new Player(0, 0);
 let name = prompt("What is your name?");
 let colour = "hsl(" + Math.random() * 360 + ", 100%, 50%)";
 if (name.length > 50) {
-  name.splice(50, name.length - 50);
+  name = name.slice(0, 50);
 }
 players[0].name = name;
 players[0].colour = colour;
@@ -459,6 +506,9 @@ players[0].colour = colour;
 socket.emit("sendInfo", name, colour);
 let undoPressed = false; //You don't want all of your stuff gone
 let oldAngle = 0;
+let messageTimer = 0; //How long has the message box been there for?
+let scroll = 0; //scroll from the bottom of the chat
+ctx.font = "11px Arial";
 
 function Loop() {
 
@@ -475,6 +525,8 @@ function Loop() {
   if (keys["ArrowRight"] || keys["d"]) {
     players[0].keys.right = true;
   } else players[0].keys.right = false;
+  if (keys["i"]) scroll++;
+  if (keys["o"]) scroll--;
   while (messages.length > 20) {
     messages.shift();
   }
@@ -536,8 +588,21 @@ function Loop() {
       ctx.fillText("Rocket Launcher", 10, c.height - 10);
 
     ctx.fillText("Score: " + players[0].score, 10, c.height - 50);
-    ctx.font = "10px Arial";
+    ctx.font = "11px Arial";
   }
+  if (scroll > messages2.length - 10) scroll = messages2.length - 10;
+  if (scroll < 0) scroll = 0;
+  //Draw chat
+  if (messages2.length && messageTimer < 200) {
+
+    ctx.fillStyle = "rgba(185, 220, 250," + (0.75 / Math.pow(messageTimer / 200 + 1, 2)) + ")";
+    ctx.fillRect(0, c.height / 1.3, c.width / 3, c.height - c.height / 1.3);
+    ctx.fillStyle = "black";
+    for (let i = messages2.length - 1; i >= Math.max(messages2.length - 10, 0); i--) {
+      ctx.fillText(messages2[i - scroll], 2, c.height - 4 - (messages2.length - i - 1) * 20);
+    }
+  }
+  // messageTimer++;
   requestAnimationFrame(Loop);
 }
 window.onload = () => Loop();
