@@ -121,7 +121,7 @@ io.on("connection", function (socket) {
       message = "Warning: this message contained an offensive word, so it was removed"
     }
     clients[id].spam = new Date() - messageTime;
-    if (clients[id].spam > 20) {
+    if (clients[id].spam > 100 && message) {
       io.in(clients[id].room).emit("message", id, message);
       messageTime = new Date();
     }
