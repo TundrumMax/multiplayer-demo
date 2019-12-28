@@ -76,12 +76,14 @@ let mouse = {
   isDown: false,
   scroll: 0
 };
-document.addEventListener("mousedown", function () {
+document.addEventListener("mousedown", function (e) {
   if (room == "main") {
     players[0].AddLine(mouse.x - c.width / 2, mouse.y - c.height / 2);
     socket.emit("AddLine", mouse.x - c.width / 2, mouse.y - c.height / 2);
   }
-
+  if (e.target == document.body) {
+    textbar.blur();
+  }
   mouse.isDown = true;
 })
 document.addEventListener("mouseup", function () {
@@ -584,13 +586,13 @@ function Loop() {
     ctx.fillStyle = "black";
     ctx.font = "30px Arial";
     if (players[0].gun == 0)
-      ctx.fillText("Pistol", 10, c.height - 10);
+      ctx.fillText("Pistol", 10, 40);
     else if (players[0].gun == 1)
-      ctx.fillText("Sniper Rifle", 10, c.height - 10);
+      ctx.fillText("Sniper Rifle", 10, 40);
     else if (players[0].gun == 2)
-      ctx.fillText("Rocket Launcher", 10, c.height - 10);
+      ctx.fillText("Rocket Launcher", 10, 40);
 
-    ctx.fillText("Score: " + players[0].score, 10, c.height - 50);
+    ctx.fillText("Score: " + players[0].score, 10, 90);
     ctx.font = "11px Arial";
   }
   if (scroll > messages2.length - 10) scroll = messages2.length - 10;
