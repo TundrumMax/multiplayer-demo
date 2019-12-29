@@ -1,0 +1,39 @@
+<html>
+
+<head>
+    <title>That Square Game</title>
+    <style>
+        html {
+            overflow: hidden;
+        }
+
+        body {
+            margin: 0px;
+        }
+
+        #textbar {
+            width: 100%;
+            height: 5%;
+            bottom: 0px;
+        }
+
+        #textinput {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="canvas"></canvas>
+    <script src="/socket.io/socket.io.js"></script>
+
+
+
+    <form id="textbar"><input id="textinput" type="text" name="message" placeholder="Type message here"
+            autocomplete="off"></form>
+    <script src="script.js"></script>
+</body>
+
+</html>
