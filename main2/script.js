@@ -12,18 +12,21 @@ let mouse = {
     old: {
         x: this.x,
         y: this.y
-    }
+    },
+    wheel: 0
 };
 document.onmousedown = e => {
     mouse.old.x = e.clientX;
     mouse.old.y = e.clientY;
-    mouse.isDown = true;
+    if (e.button == 0)
+        mouse.isDown = true;
     mouse.button[e.button] = true;
     if (players[0].MouseDown) //Only run if it actually exists
         players[0].MouseDown();
 };
 document.onmouseup = e => {
-    mouse.isDown = false;
+    if (e.button == 0)
+        mouse.isDown = false;
     mouse.button[e.button] = false;
     if (players[0].MouseUp)
         players[0].MouseUp();
@@ -34,33 +37,43 @@ document.onmousemove = e => {
     if (players[0].MouseMove)
         players[0].MouseMove();
 };
-
+document.onwheel = e => {
+    mouse.wheel += e.deltaY / 100;
+    if (players[0].MouseWheel)
+        players[0].MouseWheel(e.deltaY / 100);
+}
+document.oncontextmenu = e => {
+    return false;
+}
 let keys = [];
 document.onkeydown = e => keys[e.key] = true;
 document.onkeyup = e => keys[e.key] = false;
 
 let players = [];
 class Player {
-    constructor(x, y, name, width = 10, height = 10, colour = "hsl(" + (360 * Math.random()) + ",100%,50%)") {
+    constructor(x, y, name, width = 10, height = 10, colour = "hsl(" + (360 * Math.random()) + ",100%,50%)", isMain = false) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.name = name;
         this.colour = colour;
+        this.isMain = isMain; //Is this you?
     }
     Update() {
-        if (keys["w"] || keys["ArrowUp"]) {
-            this.y--;
-        }
-        if (keys["a"] || keys["ArrowLeft"]) {
-            this.x--;
-        }
-        if (keys["s"] || keys["ArrowDown"]) {
-            this.y++;
-        }
-        if (keys["d"] || keys["ArrowRight"]) {
-            this.x++;
+        if (this.isMain) {
+            if (keys["w"] || keys["ArrowUp"]) {
+                this.y--;
+            }
+            if (keys["a"] || keys["ArrowLeft"]) {
+                this.x--;
+            }
+            if (keys["s"] || keys["ArrowDown"]) {
+                this.y++;
+            }
+            if (keys["d"] || keys["ArrowRight"]) {
+                this.x++;
+            }
         }
     }
     Draw() {
@@ -73,8 +86,8 @@ class Player {
     }
 }
 class MainPlayer extends Player {
-    constructor(x, y, name, width, height, colour) {
-        super(x, y, name, width, height, colour);
+    constructor(x, y, name, width, height, colour, isMain) {
+        super(x, y, name, width, height, colour, isMain);
         this.shapes = []; //Array containing shapes. The first index is the colour and thickness of the shape
         this.shape = 0; //Current shape
         this.shapecolour = "black"; //The colour of the shape
@@ -120,30 +133,67 @@ class MainPlayer extends Player {
 
 }
 class GunPlayer extends Player {
-    constructor(x, y, name, width, height, colour) {
-        super(x, y, name, width, height, colour);
+    constructor(x, y, name, width, height, colour, isMain) {
+        super(x, y, name, width, height, colour, isMain);
         this.gun = 2; //Current gun
         this.bullets = []; //Array containing every bullet belonging to the player
         this.lastEnemy; //Last enemy to hit you
         this.score = 0;
+        this.health = 100;
         this.cooldown = 0; //How long it has been since the last bullet was fired
         this.visualTimer = 0; //Duration of visual updates
         this.visualAction = 0; //0 is Alive, 1 is Dead, 2 is Respawn Shield
         this.angle = 0; //Current view angle of the player
+
+        this.wobble = 20; //adds wobble to the gun, and you have to focus to aim properly
+        this.focus = false //Im gonna do whats called a pro gamer move
+        this.velocity = {
+            x: 0,
+            y: 0
+        } //only really used for the recoil tbh
     }
     Update() {
-        super.Update();
-        let angle = Math.atan2(mouse.x - this.x - c.width / 2, mouse.y - this.y - c.height / 2);
-        this.angle = angle;
+        this.x += this.velocity.x;
+        this.y += this.velocity.y;
+        this.velocity.x *= 0.9;
+        this.velocity.y *= 0.9;
+        if (Math.abs(this.velocity.x) < 0.2) this.velocity.x = 0;
+        if (Math.abs(this.velocity.y) < 0.2) this.velocity.y = 0;
+        if (this.visualAction == 0 || this.visualAction == 2)
+            super.Update();
+        let wobble = Math.random() * (this.wobble) * (Math.PI / 180) - this.wobble / 2 * (Math.PI / 180);
 
+        let angle = Math.atan2(mouse.x - this.x - c.width / 2, mouse.y - this.y - c.height / 2);
+        if (this.isMain)
+            this.angle = angle;
+        angle += wobble;
         //gun update
-        if (mouse.isDown || this.bulletTimer > 0)
+        if ((mouse.button[2]) && this.isMain) {
+            this.focus = true;
+            if (this.wobble > 2) {
+                this.wobble = this.wobble / 1.1;
+            }
+        } else {
+            this.focus = false;
+            if (this.wobble < 20) {
+                this.wobble = this.wobble * 1.1;
+            }
+        }
+        if ((mouse.isDown && mouse.button[0]) || this.bulletTimer > 0)
             this.cooldown++;
         if (this.gun == 0) this.cooldown %= 10;
         if (this.gun == 1) this.cooldown %= 20;
         if (this.gun == 2) this.cooldown %= 50;
 
-        if (this.cooldown == 0 && mouse.isDown) {
+        if (this.cooldown == 0 && mouse.isDown && mouse.button[0] && this.isMain) {
+            //recoil
+            let recoil = 0.5;
+            if (this.gun == 1) recoil = 2;
+            if (this.gun == 2) recoil = 4;
+            this.velocity.x -= Math.sin(this.angle) * recoil;
+            this.velocity.y -= Math.cos(this.angle) * recoil;
+
+            //main bullet generation code
             let speed = 0;
             let damage = 20;
             if (this.gun == 0) speed = 15;
@@ -154,14 +204,11 @@ class GunPlayer extends Player {
             let bullet = {
                 type: this.gun,
                 speed: speed,
-                x: this.x,
-                y: this.y,
+                x: this.x + Math.sin(angle) * speed, //offset it so that you cant see the bullet behind the player
+                y: this.y + Math.cos(angle) * speed,
                 // angle: Math.atan2(mouse.x - this.x - c.width / 2, mouse.y - this.y - c.height / 2),
-                angle: this.angle,
-                damage: damage,
-                spinDirection: Math.round(Math.random()) * 2 - 1, //just a cool effect for the rocket launcher
-                time: 0,
-                duration: Math.random() * 30 + 15
+                angle: angle,
+                damage: damage
             }
             this.bullets.push(bullet);
         }
@@ -172,35 +219,50 @@ class GunPlayer extends Player {
             this.bullets[i].y += Math.cos(this.bullets[i].angle) * this.bullets[i].speed;
 
             if (this.bullets[i].type == 2) {
-                this.bullets[i].time++;
-                if (this.bullets[i].time < this.bullets[i].duration) {
-                    this.bullets[i].speed *= 1.025;
-                    this.bullets[i].angle += Math.sin(this.bullets[i].time / 3) / 20;
-                } else {
-                    this.bullets[i].speed /= 1.025;
-                    this.bullets[i].angle += this.bullets[i].spinDirection * (this.bullets[i].time - this.bullets[i].duration) / 100;
-                }
-                if (this.bullets[i].time > this.bullets[i].duration + (150 - 35)) {
-                    this.bullets.splice(i, 1);
-                    i--;
-                    continue;
-                }
+                this.bullets[i].speed *= 1.025;
             }
 
-            for (player of players) {
+            for (p in players) {
+                let player = players[p];
                 if (player == this) continue;
                 let distX = Math.abs(this.bullets[i].x - player.x) - Math.abs(player.width);
                 let distY = Math.abs(this.bullets[i].y - player.y) - Math.abs(player.height);
                 let dist = Math.sqrt(distX ** 2 + distY ** 2);
-                if (dist < 10) {
+                if (dist < 10 && player.visualAction == 0) {
                     player.lastEnemy = this;
                     player.health -= this.bullets[i].damage;
+                    player.health = Math.max(player.health, 0);
+                    if (this.bullets[i].type != 1) {
+                        this.bullets.splice(i, 1);
+                        i--;
+                        continue;
+                    }
                 }
             }
+        }
+        if (this.health < 1 && this.visualAction == 0) {
+            this.visualAction = 1;
+        }
+        if (this.visualAction) {
+            this.visualTimer++;
+        } else {
+            this.visualTimer = 0;
+        }
+        if (this.visualAction == 1 && this.visualTimer > 120) {
+            this.visualAction = 2;
+            this.visualTimer = 0;
+            this.x = 0;
+            this.y = 0;
+            this.health = 100;
+        }
+        if (this.visualAction == 2 && this.visualTimer > 360) {
+            this.visualAction = 0;
+            this.visualTimer = 0;
         }
     }
     Draw() {
         //Draw Bullets
+        ctx.strokeStyle = "black";
         for (let i = 0; i < this.bullets.length; i++) {
             let thickness = Math.min(7 - this.bullets[i].speed / 5, 10);
             let length = Math.max(this.bullets[i].speed / 2 + 10, 10);
@@ -233,14 +295,85 @@ class GunPlayer extends Player {
         ctx.lineWidth = 1;
         ctx.strokeStyle = "#000";
 
-        super.Draw();
+        //draw aim lines
+        if (this.isMain) {
+            let wAngle = (this.wobble * 2) * (Math.PI / 180);
+            let a1x = Math.sin(this.angle - wAngle);
+            let a1y = Math.cos(this.angle - wAngle);
+            let a2x = Math.sin(this.angle + wAngle);
+            let a2y = Math.cos(this.angle + wAngle);
+            let aimGradient1 = ctx.createLinearGradient(0, 0, 800, 800);
+            aimGradient1.addColorStop(0, "rgba(255,0,0,0)");
+            aimGradient1.addColorStop(1, "rgba(255,0,0," + (1 - this.wobble / 20) + ")");
+
+            ctx.strokeStyle = aimGradient1;
+            ctx.beginPath();
+            ctx.moveTo(this.x + a1x * 20 + c.width / 2, this.y + a1y * 20 + c.height / 2);
+            ctx.lineTo(this.x + a1x * 100 + c.width / 2, this.y + a1y * 100 + c.height / 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(this.x + a2x * 20 + c.width / 2, this.y + a2y * 20 + c.height / 2);
+            ctx.lineTo(this.x + a2x * 100 + c.width / 2, this.y + a2y * 100 + c.height / 2);
+            ctx.stroke();
+        }
+
+        //Visual stuff like the player explosion or respawn shield
+        if (this.visualAction != 1)
+            super.Draw();
+
+        if (this.isMain) {
+            ctx.font = "30px Arial"
+            //Draw text
+            if (this.gun == 0) ctx.fillText("Pistol", 10, 40);
+            if (this.gun == 1) ctx.fillText("Sniper Rifle", 10, 40);
+            if (this.gun == 2) ctx.fillText("Rocket Launcher", 10, 40);
+            ctx.fillText("Score: " + this.score, 10, 90);
+
+            ctx.font = "10px Arial";
+        }
+
+        if (this.visualAction == 1) {
+            ctx.beginPath();
+            ctx.moveTo(this.x + (Math.random() * (20 - Math.sqrt(this.visualTimer * 2)) + (20 - Math.sqrt(this.visualTimer * 2))) + c.width / 2, this.y + c.height / 2);
+            for (let a = 1; a < 15; a++) {
+                let amplitude = Math.random() * (20 - Math.sqrt(this.visualTimer * 2)) + (20 - Math.sqrt(this.visualTimer * 2));
+                let angle = a * (Math.PI / 7.5);
+                ctx.lineTo(this.x + Math.cos(angle) * amplitude + c.width / 2, this.y + Math.sin(angle) * amplitude + c.height / 2);
+            }
+            ctx.fillStyle = "hsl(" + Math.sqrt(this.visualTimer * 4) + ",100%,50%)";
+            ctx.fill();
+        }
+        if (this.visualAction == 2) {
+            ctx.beginPath();
+            ctx.arc(this.x + c.width / 2, this.y + c.height / 2, 15, 0, 2 * Math.PI);
+            ctx.fillStyle = "hsla(" + (Math.sin(this.visualTimer * (Math.PI / 45)) * 20 + 220) + ", 100%,50%, 0.5)";
+            ctx.fill();
+        }
+
+
+        //Health bar, cuz we need to see how much health you have, you know?
+        ctx.fillStyle = "red";
+        ctx.fillRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, 100, 10);
+        ctx.fillStyle = "green";
+        ctx.fillRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, this.health, 10);
+        ctx.strokeStyle = "black";
+        ctx.strokeRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, 100, 10);
+    }
+    MouseWheel(delta) {
+        let diff = Math.round(delta);
+        this.gun += diff;
+        this.gun %= 3;
+        while (this.gun < 0) this.gun += 3;
     }
 }
 players[0] = new GunPlayer(0, 0, "bruh", 10, 10);
+players[0].isMain = true;
+players[1] = new GunPlayer(0, 0, "beeeeee", 10, 10);
 //Main Loop
 function Loop() {
     ctx.clearRect(0, 0, c.width, c.height);
-    for (player of players) {
+    for (p in players) {
+        let player = players[p];
         player.Update();
         player.Draw();
     }
