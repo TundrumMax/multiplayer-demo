@@ -1,7 +1,7 @@
 //Canvas
 let c = document.getElementById("canvas");
 c.width = window.innerWidth;
-c.height = window.innerHeight * 0.95;
+c.height = window.innerHeight;
 let ctx = c.getContext("2d");
 
 let mouse = {
@@ -179,7 +179,7 @@ class GunPlayer extends Player {
                 this.wobble = this.wobble * 1.1;
             }
         }
-        if ((mouse.isDown && mouse.button[0]) || this.bulletTimer > 0)
+        if ((mouse.isDown && mouse.button[0]) || this.cooldown > 0)
             this.cooldown++;
         if (this.gun == 0) this.cooldown %= 10;
         if (this.gun == 1) this.cooldown %= 20;
@@ -261,6 +261,14 @@ class GunPlayer extends Player {
         }
     }
     Draw() {
+        //Health bar, cuz we need to see how much health you have, you know?
+        ctx.fillStyle = "red";
+        ctx.fillRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, 100, 10);
+        ctx.fillStyle = "green";
+        ctx.fillRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, this.health, 10);
+        ctx.strokeStyle = "black";
+        ctx.strokeRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, 100, 10);
+
         //Draw Bullets
         ctx.strokeStyle = "black";
         for (let i = 0; i < this.bullets.length; i++) {
@@ -302,7 +310,7 @@ class GunPlayer extends Player {
             let a1y = Math.cos(this.angle - wAngle);
             let a2x = Math.sin(this.angle + wAngle);
             let a2y = Math.cos(this.angle + wAngle);
-            let aimGradient1 = ctx.createLinearGradient(0, 0, 800, 800);
+            let aimGradient1 = ctx.createRadialGradient(this.x + c.width / 2, this.y + c.height / 2, 10, this.x + c.width / 2, this.y + c.height / 2, 100);
             aimGradient1.addColorStop(0, "rgba(255,0,0,0)");
             aimGradient1.addColorStop(1, "rgba(255,0,0," + (1 - this.wobble / 20) + ")");
 
@@ -351,13 +359,6 @@ class GunPlayer extends Player {
         }
 
 
-        //Health bar, cuz we need to see how much health you have, you know?
-        ctx.fillStyle = "red";
-        ctx.fillRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, 100, 10);
-        ctx.fillStyle = "green";
-        ctx.fillRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, this.health, 10);
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, 100, 10);
     }
     MouseWheel(delta) {
         let diff = Math.round(delta);
