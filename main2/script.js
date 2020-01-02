@@ -263,11 +263,11 @@ class GunPlayer extends Player {
     Draw() {
         //Health bar, cuz we need to see how much health you have, you know?
         ctx.fillStyle = "red";
-        ctx.fillRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, 100, 10);
+        ctx.fillRect(this.x - 75 / 2 + c.width / 2, this.y - 20 + c.height / 2, 75, 7);
         ctx.fillStyle = "green";
-        ctx.fillRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, this.health, 10);
+        ctx.fillRect(this.x - 75 / 2 + c.width / 2, this.y - 20 + c.height / 2, this.health / (1 / 3 + 1), 7);
         ctx.strokeStyle = "black";
-        ctx.strokeRect(this.x - 50 + c.width / 2, this.y - 20 + c.height / 2, 100, 10);
+        ctx.strokeRect(this.x - 75 / 2 + c.width / 2, this.y - 20 + c.height / 2, 75, 7);
 
         //Draw Bullets
         ctx.strokeStyle = "black";
