@@ -4,6 +4,70 @@ c.width = window.innerWidth;
 c.height = window.innerHeight;
 let ctx = c.getContext("2d");
 
+let socket = io();
+let id = socket.id;
+let room = "gun"
+
+function GeneratePlayer() {
+    switch (room) {
+        case "main":
+            return new MainPlayer(0, 0, "Choosing a name", 10, 10, null, false);
+        case "gun":
+            return new GunPlayer(0, 0, "Choosing a name", 10, 10, null, false);
+    }
+}
+
+function copyObject(object) {
+    let ob = new Object();
+    for (i in object) {
+        ob[i] = object[i];
+    }
+    return ob;
+}
+
+function sameObject(ob1, ob2) {
+    for (i in ob1) { //Go through ob1
+        if (ob2[i] != ob1[i]) return false;
+    }
+    for (i in ob2) { //Go through ob2
+        if (ob2[i] != ob1[i]) return false;
+    }
+    return true;
+}
+
+socket.on("PlayerJoined", id => {
+    players[id] = GeneratePlayer();
+})
+socket.on("PlayerLeave", id => {
+    delete players[id];
+})
+socket.on("SetPosition", (id, position) => {
+    players[id].x = position.x;
+    players[id].y = position.y;
+})
+socket.on("KeyChange", (id, mov, position) => {
+    players[id].mov = copyObject(mov);
+    players[id].x = position.x;
+    players[id].y = position.y;
+})
+socket.on("SetColour", (id, colour) => {
+    players[id].colour = colour;
+})
+socket.on("SetName", (id, name) => {
+    players[id].name = name;
+})
+socket.on("MouseDown", (id, position) => {
+    if (players[id].MouseDown)
+        players[id].MouseDown(position);
+})
+socket.on("MouseMove", (id, position) => {
+    if (players[id].MouseMove)
+        players[id].MouseMove(position);
+})
+socket.on("MouseUp", (id) => {
+    if (players[id].MouseUp)
+        players[id].MouseUp();
+})
 let mouse = {
     x: 0,
     y: 0,
@@ -23,6 +87,7 @@ document.onmousedown = e => {
     mouse.button[e.button] = true;
     if (players[0].MouseDown) //Only run if it actually exists
         players[0].MouseDown();
+    socket.emit("MouseDown", mouse);
 };
 document.onmouseup = e => {
     if (e.button == 0)
@@ -30,12 +95,14 @@ document.onmouseup = e => {
     mouse.button[e.button] = false;
     if (players[0].MouseUp)
         players[0].MouseUp();
+    socket.emit("MouseUp");
 };
 document.onmousemove = e => {
     mouse.x = e.clientX - c.getBoundingClientRect().left;
     mouse.y = e.clientY - c.getBoundingClientRect().top;
     if (players[0].MouseMove)
-        players[0].MouseMove();
+        players[0].MouseMove(mouse);
+    socket.emit("MouseMove", mouse);
 };
 document.onwheel = e => {
     mouse.wheel += e.deltaY / 100;
@@ -46,8 +113,12 @@ document.oncontextmenu = e => {
     return false;
 }
 let keys = [];
-document.onkeydown = e => keys[e.key] = true;
-document.onkeyup = e => keys[e.key] = false;
+document.onkeydown = e => {
+    keys[e.key] = true;
+};
+document.onkeyup = e => {
+    keys[e.key] = false;
+};
 
 let players = [];
 class Player {
@@ -59,22 +130,16 @@ class Player {
         this.name = name;
         this.colour = colour;
         this.isMain = isMain; //Is this you?
+        this.mov = {
+            x: 0,
+            y: 0
+        }
     }
     Update() {
-        if (this.isMain) {
-            if (keys["w"] || keys["ArrowUp"]) {
-                this.y--;
-            }
-            if (keys["a"] || keys["ArrowLeft"]) {
-                this.x--;
-            }
-            if (keys["s"] || keys["ArrowDown"]) {
-                this.y++;
-            }
-            if (keys["d"] || keys["ArrowRight"]) {
-                this.x++;
-            }
-        }
+
+        this.x += this.mov.x;
+        this.y += this.mov.y;
+
     }
     Draw() {
         ctx.fillStyle = this.colour;
@@ -90,7 +155,7 @@ class MainPlayer extends Player {
         super(x, y, name, width, height, colour, isMain);
         this.shapes = []; //Array containing shapes. The first index is the colour and thickness of the shape
         this.shape = 0; //Current shape
-        this.shapecolour = "black"; //The colour of the shape
+        this.paint = "black"; //The colour of the shape
         this.thickness = 1; //The thickness of the shape's lines
     }
     Update() {
@@ -109,23 +174,35 @@ class MainPlayer extends Player {
             ctx.stroke();
         }
     }
-    MouseDown() {
+    MouseDown(position = {
+        x: mouse.x,
+        y: mouse.y
+    }) {
+        position.x -= c.width / 2;
+        position.y -= c.height / 2;
         this.shapes[this.shape] = [];
         this.shapes[this.shape][0] = {
-            x: this.shapecolour,
+            x: this.paint,
             y: this.thickness
         }
         this.shapes[this.shape][1] = {
-            x: mouse.x - c.width / 2,
-            y: mouse.y - c.height / 2
+            x: position.x,
+            y: position.y
         }
     }
-    MouseMove() {
-        if (mouse.isDown)
+    MouseMove(position = {
+        x: mouse.x,
+        y: mouse.y
+    }) {
+        position.x -= c.width / 2;
+        position.y -= c.height / 2;
+        if (this.shapes[this.shape]) {
+
             this.shapes[this.shape].push({
-                x: mouse.x - c.width / 2,
-                y: mouse.y - c.height / 2
-            });
+                x: position.x,
+                y: position.y
+            })
+        }
     }
     MouseUp() {
         this.shape++;
@@ -151,6 +228,7 @@ class GunPlayer extends Player {
             x: 0,
             y: 0
         } //only really used for the recoil tbh
+        this.mouseIsDown = false;
     }
     Update() {
         this.x += this.velocity.x;
@@ -162,10 +240,7 @@ class GunPlayer extends Player {
         if (this.visualAction == 0 || this.visualAction == 2)
             super.Update();
         let wobble = Math.random() * (this.wobble) * (Math.PI / 180) - this.wobble / 2 * (Math.PI / 180);
-
-        let angle = Math.atan2(mouse.x - this.x - c.width / 2, mouse.y - this.y - c.height / 2);
-        if (this.isMain)
-            this.angle = angle;
+        let angle = this.angle;
         angle += wobble;
         //gun update
         if ((mouse.button[2]) && this.isMain) {
@@ -360,6 +435,15 @@ class GunPlayer extends Player {
 
 
     }
+    MouseDown() {
+        this.mouseIsDown = true;
+    }
+    MouseMove(pos) {
+        this.angle = Math.atan2(pos.x - this.x - c.width / 2, pos.y - this.y - c.height / 2);
+    }
+    MouseUp() {
+        this.mouseIsDown = false;
+    }
     MouseWheel(delta) {
         let diff = Math.round(delta);
         this.gun += diff;
@@ -367,12 +451,38 @@ class GunPlayer extends Player {
         while (this.gun < 0) this.gun += 3;
     }
 }
-players[0] = new GunPlayer(0, 0, "bruh", 10, 10);
+players[0] = new GunPlayer(0, 0, prompt("What is your name?"), 10, 10);
 players[0].isMain = true;
-players[1] = new GunPlayer(0, 0, "beeeeee", 10, 10);
+socket.emit("SetColour", players[0].colour);
+socket.emit("SetName", players[0].name);
+let yourmov = {
+    x: 0,
+    y: 0
+}
 //Main Loop
 function Loop() {
     ctx.clearRect(0, 0, c.width, c.height);
+    players[0].mov.x = 0;
+    players[0].mov.y = 0;
+    if (keys["w"] || keys["ArrowUp"]) {
+        players[0].mov.y--;
+    }
+    if (keys["a"] || keys["ArrowLeft"]) {
+        players[0].mov.x--;
+    }
+    if (keys["s"] || keys["ArrowDown"]) {
+        players[0].mov.y++;
+    }
+    if (keys["d"] || keys["ArrowRight"]) {
+        players[0].mov.x++;
+    }
+    if (!sameObject(yourmov, players[0].mov)) {
+        yourmov = copyObject(players[0].mov);
+        socket.emit("KeyChange", players[0].mov, {
+            x: players[0].x,
+            y: players[0].y
+        })
+    }
     for (p in players) {
         let player = players[p];
         player.Update();
