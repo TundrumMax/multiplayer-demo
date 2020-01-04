@@ -129,11 +129,9 @@ io.on("connection", function (socket) {
   socket.on("MouseDown", (pos = {
     x: 0,
     y: 0
-  }) => {
+  }, wobble) => {
     clients[id].mouseIsDown = true;
-    console.log(id);
-    console.log(pos);
-    socket.to(clients[id].room).emit("MouseDown", id, pos);
+    socket.to(clients[id].room).emit("MouseDown", id, pos, wobble);
     if (clients[id].room == "Main") {
       clients[id].shapes[clients[id].shape] = [];
       clients[id].shapes[clients[id].shape][0] = {
@@ -205,11 +203,11 @@ io.on("connection", function (socket) {
       }
     }
   })
-  socket.on("ShootGun", (bullet) => { //Actually really bloody simple if you literally take one look at it
-    socket.to(clients[id].room).emit("ShootGun", bullet, id);
+  socket.on("ShootGun", (wobble) => { //Actually really bloody simple if you literally take one look at it
+    socket.to(clients[id].room).emit("ShootGun", id, wobble);
   })
-  socket.on("ChangeWeapon", (weapon) => {
-    socket.to(clients[id].room).emit("ChangeWeapon", weapon, id);
+  socket.on("MouseWheel", (delta) => {
+    socket.to(clients[id].room).emit("MouseWheel", id, delta);
   })
 })
 

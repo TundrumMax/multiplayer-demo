@@ -56,9 +56,9 @@ socket.on("SetColour", (id, colour) => {
 socket.on("SetName", (id, name) => {
     players[id].name = name;
 })
-socket.on("MouseDown", (id, position) => {
+socket.on("MouseDown", (id, position, wobble) => {
     if (players[id].MouseDown)
-        players[id].MouseDown(position);
+        players[id].MouseDown(position, wobble);
 })
 socket.on("MouseMove", (id, position) => {
     if (players[id].MouseMove)
@@ -67,6 +67,20 @@ socket.on("MouseMove", (id, position) => {
 socket.on("MouseUp", (id) => {
     if (players[id].MouseUp)
         players[id].MouseUp();
+})
+socket.on("ShootGun", (id, wobble) => {
+    players[id].ShootGun(wobble);
+})
+socket.on("MouseWheel", (id, delta) => {
+    if (players[id].MouseWheel)
+        players[id].MouseWheel(delta);
+})
+socket.on("UndoShape", (id) => { //will only ever happen in main room (for now)
+    players[id].UndoShape();
+})
+socket.on("message", (id, message) => {
+    if (id == socket.id) id = 0;
+    messages.push(players[id].name + ": " + message);
 })
 let mouse = {
     x: 0,
@@ -80,14 +94,19 @@ let mouse = {
     wheel: 0
 };
 document.onmousedown = e => {
+
     mouse.old.x = e.clientX;
     mouse.old.y = e.clientY;
     if (e.button == 0)
         mouse.isDown = true;
     mouse.button[e.button] = true;
-    if (players[0].MouseDown) //Only run if it actually exists
-        players[0].MouseDown();
-    socket.emit("MouseDown", mouse);
+    if (!(mouse.x + c.width / 2 > textbox.x && mouse.x + c.width / 2 < textbox.x + textbox.width && mouse.y + c.height / 2 > textbox.y && mouse.y + c.height / 2 < textbox.y + textbox.height && textbox.isFocused) || !textbox.isFocused) {
+        if (players[0].MouseDown) //Only run if it actually exists
+            players[0].MouseDown(mouse);
+        socket.emit("MouseDown", mouse);
+        textbox.isFocused = false;
+    }
+
 };
 document.onmouseup = e => {
     if (e.button == 0)
@@ -98,8 +117,8 @@ document.onmouseup = e => {
     socket.emit("MouseUp");
 };
 document.onmousemove = e => {
-    mouse.x = e.clientX - c.getBoundingClientRect().left;
-    mouse.y = e.clientY - c.getBoundingClientRect().top;
+    mouse.x = e.clientX - c.getBoundingClientRect().left - c.width / 2;
+    mouse.y = e.clientY - c.getBoundingClientRect().top - c.height / 2;
     if (players[0].MouseMove)
         players[0].MouseMove(mouse);
     socket.emit("MouseMove", mouse);
@@ -108,12 +127,34 @@ document.onwheel = e => {
     mouse.wheel += e.deltaY / 100;
     if (players[0].MouseWheel)
         players[0].MouseWheel(e.deltaY / 100);
+    socket.emit("MouseWheel", e.deltaY / 100);
 }
 document.oncontextmenu = e => {
     return false;
 }
+
 let keys = [];
 document.onkeydown = e => {
+    if (textbox.isFocused && ((e.keyCode > 46 && e.keyCode < 91) || e.keyCode == 32 || (e.keyCode > 105 && e.keyCode < 112) || (e.keyCode > 145))) {
+        textbox.text = textbox.text.slice(0, textbox.cursor) + e.key + textbox.text.slice(textbox.cursor, textbox.text.length);
+        textbox.cursor++;
+    }
+    if (e.key == "Backspace" && textbox.cursor > 0) {
+        textbox.text = textbox.text.slice(0, textbox.cursor - 1) + textbox.text.slice(textbox.cursor, textbox.text.length);
+        textbox.cursor--;
+        textbox.cursor = Math.max(textbox.cursor, 0);
+    }
+    if (e.key == "Delete" && textbox.cursor < textbox.text.length) {
+        textbox.text = textbox.text.slice(0, textbox.cursor) + textbox.text.slice(textbox.cursor + 1, textbox.text.length);
+    }
+    if (e.key == "ArrowLeft") {
+        textbox.cursor--;
+        textbox.cursor = Math.max(textbox.cursor, 0);
+    }
+    if (e.key == "ArrowRight") {
+        textbox.cursor++;
+        textbox.cursor = Math.min(textbox.cursor, textbox.text.length);
+    }
     keys[e.key] = true;
 };
 document.onkeyup = e => {
@@ -142,9 +183,11 @@ class Player {
 
     }
     Draw() {
+        //you
         ctx.fillStyle = this.colour;
         ctx.fillRect(this.x - this.width / 2 + c.width / 2, this.y - this.height / 2 + c.height / 2, this.width, this.height);
 
+        //your name
         ctx.fillStyle = "black";
         let nameWidth = ctx.measureText(this.name).width;
         ctx.fillText(this.name, this.x - nameWidth / 2 + c.width / 2, this.y + this.height / 2 + c.height / 2 + 10);
@@ -178,8 +221,6 @@ class MainPlayer extends Player {
         x: mouse.x,
         y: mouse.y
     }) {
-        position.x -= c.width / 2;
-        position.y -= c.height / 2;
         this.shapes[this.shape] = [];
         this.shapes[this.shape][0] = {
             x: this.paint,
@@ -194,8 +235,6 @@ class MainPlayer extends Player {
         x: mouse.x,
         y: mouse.y
     }) {
-        position.x -= c.width / 2;
-        position.y -= c.height / 2;
         if (this.shapes[this.shape]) {
 
             this.shapes[this.shape].push({
@@ -207,7 +246,13 @@ class MainPlayer extends Player {
     MouseUp() {
         this.shape++;
     }
-
+    MouseWheel(delta) {
+        this.thickness = Math.max(this.thickness + delta, 1);
+    }
+    UndoShape() {
+        this.shapes.splice(this.shape, 1);
+        this.shape = Math.max(this.shape - 1, 0);
+    }
 }
 class GunPlayer extends Player {
     constructor(x, y, name, width, height, colour, isMain) {
@@ -229,6 +274,7 @@ class GunPlayer extends Player {
             y: 0
         } //only really used for the recoil tbh
         this.mouseIsDown = false;
+        this.rightMouseIsDown = false;
     }
     Update() {
         this.x += this.velocity.x;
@@ -239,54 +285,7 @@ class GunPlayer extends Player {
         if (Math.abs(this.velocity.y) < 0.2) this.velocity.y = 0;
         if (this.visualAction == 0 || this.visualAction == 2)
             super.Update();
-        let wobble = Math.random() * (this.wobble) * (Math.PI / 180) - this.wobble / 2 * (Math.PI / 180);
-        let angle = this.angle;
-        angle += wobble;
-        //gun update
-        if ((mouse.button[2]) && this.isMain) {
-            this.focus = true;
-            if (this.wobble > 2) {
-                this.wobble = this.wobble / 1.1;
-            }
-        } else {
-            this.focus = false;
-            if (this.wobble < 20) {
-                this.wobble = this.wobble * 1.1;
-            }
-        }
-        if ((mouse.isDown && mouse.button[0]) || this.cooldown > 0)
-            this.cooldown++;
-        if (this.gun == 0) this.cooldown %= 10;
-        if (this.gun == 1) this.cooldown %= 20;
-        if (this.gun == 2) this.cooldown %= 50;
 
-        if (this.cooldown == 0 && mouse.isDown && mouse.button[0] && this.isMain) {
-            //recoil
-            let recoil = 0.5;
-            if (this.gun == 1) recoil = 2;
-            if (this.gun == 2) recoil = 4;
-            this.velocity.x -= Math.sin(this.angle) * recoil;
-            this.velocity.y -= Math.cos(this.angle) * recoil;
-
-            //main bullet generation code
-            let speed = 0;
-            let damage = 20;
-            if (this.gun == 0) speed = 15;
-            else if (this.gun == 1) speed = 20;
-            else if (this.gun == 2) speed = 5;
-            if (this.gun == 1) damage = 50;
-            else if (this.gun == 2) damage = 100;
-            let bullet = {
-                type: this.gun,
-                speed: speed,
-                x: this.x + Math.sin(angle) * speed, //offset it so that you cant see the bullet behind the player
-                y: this.y + Math.cos(angle) * speed,
-                // angle: Math.atan2(mouse.x - this.x - c.width / 2, mouse.y - this.y - c.height / 2),
-                angle: angle,
-                damage: damage
-            }
-            this.bullets.push(bullet);
-        }
 
         //bullet update
         for (let i = 0; i < this.bullets.length; i++) {
@@ -296,7 +295,11 @@ class GunPlayer extends Player {
             if (this.bullets[i].type == 2) {
                 this.bullets[i].speed *= 1.025;
             }
-
+            if (Math.sqrt(this.bullets[i].x ** 2 + this.bullets[i].y ** 2) > 1500) {
+                this.bullets.splice(i, 1);
+                i--;
+                continue;
+            }
             for (p in players) {
                 let player = players[p];
                 if (player == this) continue;
@@ -317,6 +320,7 @@ class GunPlayer extends Player {
         }
         if (this.health < 1 && this.visualAction == 0) {
             this.visualAction = 1;
+            this.lastEnemy.score += 20;
         }
         if (this.visualAction) {
             this.visualTimer++;
@@ -435,11 +439,14 @@ class GunPlayer extends Player {
 
 
     }
-    MouseDown() {
-        this.mouseIsDown = true;
+    MouseDown(mouse) {
+        if (mouse.isDown)
+            this.mouseIsDown = true;
+        if (mouse.button[2])
+            this.rightMouseIsDown = true;
     }
     MouseMove(pos) {
-        this.angle = Math.atan2(pos.x - this.x - c.width / 2, pos.y - this.y - c.height / 2);
+        this.angle = Math.atan2(pos.x - this.x, pos.y - this.y);
     }
     MouseUp() {
         this.mouseIsDown = false;
@@ -450,8 +457,124 @@ class GunPlayer extends Player {
         this.gun %= 3;
         while (this.gun < 0) this.gun += 3;
     }
+    ShootGun(wobb) {
+        let angle = this.angle;
+        angle += wobb;
+        //gun update
+        if (this.isMain) {
+            if ((mouse.button[2])) {
+                this.focus = true;
+                if (this.wobble > 2) {
+                    this.wobble = this.wobble / 1.1;
+                }
+            } else {
+                this.focus = false;
+                if (this.wobble < 20) {
+                    this.wobble = this.wobble * 1.1;
+                }
+            }
+        }
+
+
+
+        if (this.cooldown == 0 && this.mouseIsDown) {
+            //recoil
+            let recoil = 0.5;
+            if (this.gun == 1) recoil = 2;
+            if (this.gun == 2) recoil = 4;
+            this.velocity.x -= Math.sin(this.angle) * recoil;
+            this.velocity.y -= Math.cos(this.angle) * recoil;
+
+            //main bullet generation code
+            let speed = 0;
+            let damage = 20;
+            if (this.gun == 0) speed = 15;
+            else if (this.gun == 1) speed = 20;
+            else if (this.gun == 2) speed = 5;
+            if (this.gun == 1) damage = 50;
+            else if (this.gun == 2) damage = 100;
+            let bullet = {
+                type: this.gun,
+                speed: speed,
+                x: this.x + Math.sin(angle) * speed, //offset it so that you cant see the bullet behind the player
+                y: this.y + Math.cos(angle) * speed,
+                // angle: Math.atan2(mouse.x - this.x - c.width / 2, mouse.y - this.y - c.height / 2),
+                angle: angle,
+                damage: damage
+            }
+            this.bullets.push(bullet);
+            if (this.isMain) {
+                socket.emit("ShootGun", wobb);
+            }
+        }
+        if (this.isMain) {
+            if (this.mouseIsDown || this.cooldown > 0)
+                this.cooldown++;
+            if (this.gun == 0) this.cooldown %= 10;
+            if (this.gun == 1) this.cooldown %= 20;
+            if (this.gun == 2) this.cooldown %= 50;
+        }
+    }
 }
-players[0] = new GunPlayer(0, 0, prompt("What is your name?"), 10, 10);
+let messages = [];
+let textbox = {
+    x: 0,
+    y: c.height - 50,
+    width: c.width,
+    height: 50,
+    cursor: 0,
+    text: "ur mother is ur father",
+    blinktimer: 0,
+    blinkspeed: 50, //first half is visible, second half is invisible
+    draw: function () {
+        if (this.visibility > 0) {
+            //the box itself
+            ctx.fillStyle = "rgba(255,255,255," + this.visibility + ")";
+            ctx.strokeStyle = "rgba(0,0,0," + this.visibility + ")";
+            ctx.lineWidth = 2;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+            //the text
+            ctx.font = "20px Arial";
+            ctx.fillStyle = "rgba(0,0,0," + this.visibility + ")";
+            ctx.fillText(this.text, this.x + 10, this.y + 32, this.width - 10);
+
+
+            //the cursor
+            ctx.lineWidth = 1;
+            if (this.blinktimer < this.blinkspeed / 2) {
+
+                let cursorX = ctx.measureText(this.text.slice(0, this.cursor)).width; //calculate cursor position
+                let overflow = ctx.measureText(this.text).width / (this.width - 10);
+                if (overflow > 1) {
+                    cursorX /= overflow;
+                }
+                ctx.beginPath();
+                ctx.moveTo(Math.round(this.x + 10 + cursorX), Math.round(this.y + 10));
+                ctx.lineTo(Math.round(this.x + 10 + cursorX), Math.round(this.y + 40));
+                ctx.stroke();
+            }
+            ctx.font = "10px Arial";
+        }
+
+    },
+    update: function () {
+        this.blinktimer++;
+        this.blinktimer %= this.blinkspeed;
+        if (!this.isFocused) this.visibility -= 0.05;
+        else this.visibility = 1;
+    },
+    isFocused: true,
+    visibility: 1
+}
+let messageBoxScroll = 0;
+let messageBoxFade = 0;
+
+
+players[0] = GeneratePlayer();
+players[0].name = prompt("What is your name?");
+players[0].colour = "hsl(" + (Math.random() * 360) + ", 100%,50%)";
 players[0].isMain = true;
 socket.emit("SetColour", players[0].colour);
 socket.emit("SetName", players[0].name);
@@ -459,22 +582,51 @@ let yourmov = {
     x: 0,
     y: 0
 }
+let undoed = false;
+let entered = false;
 //Main Loop
 function Loop() {
     ctx.clearRect(0, 0, c.width, c.height);
+    let wobble = Math.random() * (players[0].wobble) * (Math.PI / 180) - players[0].wobble / 2 * (Math.PI / 180);
+    if (room == "gun")
+        players[0].ShootGun(wobble);
     players[0].mov.x = 0;
     players[0].mov.y = 0;
-    if (keys["w"] || keys["ArrowUp"]) {
-        players[0].mov.y--;
+    if (!textbox.isFocused) {
+        if (keys["w"] || keys["ArrowUp"]) {
+            players[0].mov.y--;
+        }
+        if (keys["a"] || keys["ArrowLeft"]) {
+            players[0].mov.x--;
+        }
+        if (keys["s"] || keys["ArrowDown"]) {
+            players[0].mov.y++;
+        }
+        if (keys["d"] || keys["ArrowRight"]) {
+            players[0].mov.x++;
+        }
     }
-    if (keys["a"] || keys["ArrowLeft"]) {
-        players[0].mov.x--;
+
+    if (keys["Control"] && keys["z"] && !undoed && room == "main") { //undo
+        socket.emit("UndoShape");
+        players[0].UndoShape();
+        undoed = true;
+    } else {
+        undoed = false;
     }
-    if (keys["s"] || keys["ArrowDown"]) {
-        players[0].mov.y++;
+    if (((keys["Enter"] && !entered) || keys["t"]) && !textbox.isFocused) {
+        textbox.isFocused = true;
+        if (keys["Enter"]) entered = true;
+    } else if (keys["Enter"] && !entered) {
+        textbox.isFocused = false;
+        entered = true;
+        if (textbox.text.length) {
+            socket.emit("message", textbox.text);
+            textbox.text = "";
+        }
     }
-    if (keys["d"] || keys["ArrowRight"]) {
-        players[0].mov.x++;
+    if (!keys["Enter"]) {
+        entered = false;
     }
     if (!sameObject(yourmov, players[0].mov)) {
         yourmov = copyObject(players[0].mov);
@@ -488,6 +640,24 @@ function Loop() {
         player.Update();
         player.Draw();
     }
+    textbox.update();
+    textbox.draw();
+
+    if (messageBoxScroll > messages.length - 10) messageBoxScroll = messages.length - 10;
+    if (messageBoxScroll < 0) messageBoxScroll = 0;
+    //Draw chat
+    if (messages.length && messageBoxFade < 200) {
+
+        ctx.fillStyle = "rgba(185, 220, 250," + (0.75 / Math.pow(messageBoxFade / 200 + 1, 2)) + ")";
+        ctx.fillRect(0, c.height / 1.3 - 50, c.width / 3, c.height - c.height / 1.3);
+        ctx.fillStyle = "black";
+        for (let i = messages.length - 1; i >= Math.max(messages.length - 10, 0); i--) {
+            ctx.fillText(messages[i - messageBoxScroll], 2, c.height - 4 - (messages.length - i - 1) * 20 - 50);
+        }
+    }
+    if (!textbox.isFocused)
+        messageBoxFade++;
+    else messageBoxFade = 0;
 
     requestAnimationFrame(Loop);
 }
