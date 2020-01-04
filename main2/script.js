@@ -6,7 +6,7 @@ let ctx = c.getContext("2d");
 
 let socket = io();
 let id = socket.id;
-let room = "gun"
+let room = "main"
 
 function GeneratePlayer() {
     switch (room) {
@@ -35,6 +35,11 @@ function sameObject(ob1, ob2) {
     return true;
 }
 
+function setObject(host, parasite) { //Incase you want to keep stuff
+    for (i in parasite) {
+        host[i] = parasite[i];
+    }
+}
 socket.on("PlayerJoined", id => {
     players[id] = GeneratePlayer();
 })
@@ -81,6 +86,9 @@ socket.on("UndoShape", (id) => { //will only ever happen in main room (for now)
 socket.on("message", (id, message) => {
     if (id == socket.id) id = 0;
     messages.push(players[id].name + ": " + message);
+})
+socket.on("SendData", (id, data) => {
+    setObject(players[id], data);
 })
 let mouse = {
     x: 0,
@@ -257,7 +265,7 @@ class MainPlayer extends Player {
 class GunPlayer extends Player {
     constructor(x, y, name, width, height, colour, isMain) {
         super(x, y, name, width, height, colour, isMain);
-        this.gun = 2; //Current gun
+        this.gun = 0; //Current gun
         this.bullets = []; //Array containing every bullet belonging to the player
         this.lastEnemy; //Last enemy to hit you
         this.score = 0;
@@ -516,6 +524,34 @@ class GunPlayer extends Player {
         }
     }
 }
+let validRooms = ["main", "gun"]; //do you really want to go to any other room
+function DoCommand(input) {
+    input = input.slice(1, input.length); //Shaves off the "/"
+    let texts = input.split(" "); //Parameters
+    if (texts[0] == "goto") { //means you want to go to a different room
+        let inputRoom = texts[1];
+
+        for (let i = 0; i < validRooms.length; i++) {
+            if (validRooms[i] == inputRoom) {
+                socket.emit("ChangeRoom", inputRoom);
+                room = inputRoom;
+                for (player in players) {
+                    if (player != 0)
+                        delete players[player];
+                }
+
+                let p = GeneratePlayer();
+                p.name = players[0].name;
+                p.colour = players[0].colour;
+                p.isMain = true;
+
+                players[0] = p;
+                break;
+            }
+        }
+    }
+}
+
 let messages = [];
 let textbox = {
     x: 0,
@@ -523,7 +559,7 @@ let textbox = {
     width: c.width,
     height: 50,
     cursor: 0,
-    text: "ur mother is ur father",
+    text: "",
     blinktimer: 0,
     blinkspeed: 50, //first half is visible, second half is invisible
     draw: function () {
@@ -565,8 +601,8 @@ let textbox = {
         if (!this.isFocused) this.visibility -= 0.05;
         else this.visibility = 1;
     },
-    isFocused: true,
-    visibility: 1
+    isFocused: false,
+    visibility: 0
 }
 let messageBoxScroll = 0;
 let messageBoxFade = 0;
@@ -605,6 +641,13 @@ function Loop() {
         if (keys["d"] || keys["ArrowRight"]) {
             players[0].mov.x++;
         }
+    } else {
+        if (keys["ArrowDown"]) {
+            messageBoxScroll--;
+        }
+        if (keys["ArrowUp"]) {
+            messageBoxScroll++;
+        }
     }
 
     if (keys["Control"] && keys["z"] && !undoed && room == "main") { //undo
@@ -617,13 +660,18 @@ function Loop() {
     if (((keys["Enter"] && !entered) || keys["t"]) && !textbox.isFocused) {
         textbox.isFocused = true;
         if (keys["Enter"]) entered = true;
-    } else if (keys["Enter"] && !entered) {
+    } else if ((keys["Enter"] && !entered) || keys["Escape"]) {
         textbox.isFocused = false;
         entered = true;
-        if (textbox.text.length) {
-            socket.emit("message", textbox.text);
-            textbox.text = "";
+        if (textbox.text.length && keys["Enter"]) {
+            if (textbox.text[0] == "/") {
+                DoCommand(textbox.text);
+            } else {
+                socket.emit("message", textbox.text);
+            }
+
         }
+        textbox.text = "";
     }
     if (!keys["Enter"]) {
         entered = false;
@@ -647,9 +695,9 @@ function Loop() {
     if (messageBoxScroll < 0) messageBoxScroll = 0;
     //Draw chat
     if (messages.length && messageBoxFade < 200) {
-
+        ctx.font = "11px Arial";
         ctx.fillStyle = "rgba(185, 220, 250," + (0.75 / Math.pow(messageBoxFade / 200 + 1, 2)) + ")";
-        ctx.fillRect(0, c.height / 1.3 - 50, c.width / 3, c.height - c.height / 1.3);
+        ctx.fillRect(0, c.height - 250, c.width / 3, 200);
         ctx.fillStyle = "black";
         for (let i = messages.length - 1; i >= Math.max(messages.length - 10, 0); i--) {
             ctx.fillText(messages[i - messageBoxScroll], 2, c.height - 4 - (messages.length - i - 1) * 20 - 50);

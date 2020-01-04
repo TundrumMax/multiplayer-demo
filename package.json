@@ -4,7 +4,7 @@
   "description": "multiplayer",
   "main": "SERVER.js",
   "scripts": {
-    "start": "node SERVER.js",
+    "start": "node SERVER2.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {

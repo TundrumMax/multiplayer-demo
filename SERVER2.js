@@ -41,7 +41,7 @@ function SwearFilter(m, words) { //i give up
   return m;
 }
 
-let startingRoom = "GunGame";
+let startingRoom = "main";
 io.on("connection", function (socket) {
   let messageTime = new Date();
   let id = socket.id;
@@ -49,8 +49,7 @@ io.on("connection", function (socket) {
   for (client in clients) {
     if (clients[client].room == startingRoom) {
       socket.emit("PlayerJoined", client);
-      socket.emit("SetName", client, clients[client].name);
-      socket.emit("SetColour", client, clients[client].colour);
+      socket.emit("SendData", client, clients[client]);
     }
   }
   clients[id] = {
@@ -66,7 +65,7 @@ io.on("connection", function (socket) {
     },
     spam: 0,
     shapes: [
-      []
+
     ],
     shape: 0,
     room: startingRoom,
@@ -132,7 +131,7 @@ io.on("connection", function (socket) {
   }, wobble) => {
     clients[id].mouseIsDown = true;
     socket.to(clients[id].room).emit("MouseDown", id, pos, wobble);
-    if (clients[id].room == "Main") {
+    if (clients[id].room == "main") {
       clients[id].shapes[clients[id].shape] = [];
       clients[id].shapes[clients[id].shape][0] = {
         x: clients[id].paint,
@@ -143,7 +142,7 @@ io.on("connection", function (socket) {
   })
   socket.on("MouseMove", (pos) => {
     socket.to(clients[id].room).emit("MouseMove", id, pos);
-    if (clients[id].room == "Main") {
+    if (clients[id].room == "main") {
       if (clients[id].shapes[clients[id].shape]) {
         clients[id].shapes[clients[id].shape].push(pos);
       }
@@ -152,7 +151,7 @@ io.on("connection", function (socket) {
   socket.on("MouseUp", () => {
     clients[id].mouseIsDown = false;
     socket.to(clients[id].room).emit("MouseUp", id);
-    if (clients[id].room == "Main") {
+    if (clients[id].room == "main") {
       clients[id].shape++;
     }
   })
@@ -163,17 +162,17 @@ io.on("connection", function (socket) {
   //     y: clients[id].thickness
   //   }
   //   clients[id].shapes[clients[id].shape][1] = pos;
-  //   socket.to("Main").emit("StartShape", id, pos);
+  //   socket.to("main").emit("StartShape", id, pos);
   // })
   // socket.on("AddLine", (pos) => {
   //   if (clients[id].shapes[clients[id].shape]) {
   //     clients[id].shapes[clients[id].shape].push(pos);
-  //     socket.to("Main").emit("AddLine", id, pos);
+  //     socket.to("main").emit("AddLine", id, pos);
   //   }
   // })
   // socket.on("EndShape", () => {
   //   clients[id].shape++;
-  //   socket.to("Main").emit("EndShape", id)
+  //   socket.to("main").emit("EndShape", id)
   // })
   socket.on("UndoShape", () => {
     clients[id].shapes.splice(clients[id].shape - 1, 1);
@@ -181,7 +180,7 @@ io.on("connection", function (socket) {
     clients[id].shape = Math.max(clients[id].shape, 0);
     clients[id].shapes[clients[id].shape] = [];
 
-    socket.to("Main").emit("UndoShape", id);
+    socket.to("main").emit("UndoShape", id);
   })
   socket.on("ChangeRoom", (room) => {
     for (let i = clients[id].shapes.length - 1; i >= 0; i--) {
@@ -195,11 +194,11 @@ io.on("connection", function (socket) {
     socket.join(room);
     clients[id].room = room;
     socket.to(clients[id].room).emit("PlayerJoined", id);
-    socket.to(clients[id].room).emit("PlayerInfoRecieved", id, clients[id].name, clients[id].colour);
+    socket.to(clients[id].room).emit("SendData", id, clients[id]);
     for (client in clients) {
       if (clients[client].room == clients[id].room && client != id) {
-        socket.emit("GetPlayers", clients[client], client);
-        socket.emit("PlayerInfoRecieved", client, clients[client].name, clients[client].colour);
+        socket.emit("PlayerJoined", client);
+        socket.emit("SendData", client, clients[client]);
       }
     }
   })
