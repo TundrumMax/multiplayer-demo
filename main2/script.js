@@ -672,6 +672,7 @@ function Loop() {
 
         }
         textbox.text = "";
+        textbox.cursor = 0;
     }
     if (!keys["Enter"]) {
         entered = false;
