@@ -258,7 +258,7 @@ class MainPlayer extends Player {
         this.thickness = Math.max(this.thickness + delta, 1);
     }
     UndoShape() {
-        this.shapes.splice(this.shape, 1);
+        this.shapes.splice(this.shape - 1, 1);
         this.shape = Math.max(this.shape - 1, 0);
     }
 }
@@ -654,7 +654,7 @@ function Loop() {
         socket.emit("UndoShape");
         players[0].UndoShape();
         undoed = true;
-    } else {
+    } else if (!(keys["Control"] && keys["z"])) {
         undoed = false;
     }
     if (((keys["Enter"] && !entered) || keys["t"]) && !textbox.isFocused) {
