@@ -876,7 +876,7 @@ function Loop() {
     if (!keys["Enter"]) {
         entered = false;
     }
-    if (keys["e"] && room == "gun" && !players[0].wallIsDeployed) {
+    if (keys["e"] && room == "gun" && !players[0].wallIsDeployed && !textbox.isFocused) {
         players[0].DeployWall();
     }
     if (!sameObject(yourmov, players[0].mov)) {
