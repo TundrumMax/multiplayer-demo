@@ -207,6 +207,16 @@ io.on("connection", function (socket) {
   })
   socket.on("MouseWheel", (delta) => {
     socket.to(clients[id].room).emit("MouseWheel", id, delta);
+    if (clients[id].room == "main") {
+      clients[id].thickness = Math.max(clients[id].thickness + delta * (clients[id].thickness / 10), 1);
+      clients[id].thickness = Math.min(clients[id].thickness, 100);
+    }
+    if (clients[id].room == "gun") {
+      let diff = Math.round(delta);
+      clients[id].gun += diff;
+      clients[id].gun %= 3;
+      while (clients[id].gun < 0) clients[id].gun += 3;
+    }
   })
 })
 

@@ -85,10 +85,29 @@ socket.on("UndoShape", (id) => { //will only ever happen in main room (for now)
 })
 socket.on("message", (id, message) => {
     if (id == socket.id) id = 0;
-    messages.push(players[id].name + ": " + message);
+
+    message = players[id].name + ": " + message; //adds the name to the message
+    let newMessages = [];
+
+    for (let i = 0; i < message.length; i++) {
+        let messageLength = ctx.measureText(message.slice(0, i)).width;
+        if (messageLength > c.width / 3 - 4) {
+            i--;
+            newMessages.push(message.slice(0, i));
+            message = message.slice(i, message.length);
+            i = 0;
+        }
+    }
+    if (!newMessages.length || message.length) { //means that the message was short enough not to be cut
+        newMessages.push(message);
+    }
+    for (let i = 0; i < newMessages.length; i++) messages.push(newMessages[i]);
 })
 socket.on("SendData", (id, data) => {
     setObject(players[id], data);
+})
+socket.on("DeployWall", (id) => {
+    players[id].DeployWall();
 })
 let mouse = {
     x: 0,
@@ -108,7 +127,7 @@ document.onmousedown = e => {
     if (e.button == 0)
         mouse.isDown = true;
     mouse.button[e.button] = true;
-    if (!(mouse.x + c.width / 2 > textbox.x && mouse.x + c.width / 2 < textbox.x + textbox.width && mouse.y + c.height / 2 > textbox.y && mouse.y + c.height / 2 < textbox.y + textbox.height && textbox.isFocused) || !textbox.isFocused) {
+    if ((!(mouse.x + c.width / 2 > textbox.x && mouse.x + c.width / 2 < textbox.x + textbox.width && mouse.y + c.height / 2 > textbox.y && mouse.y + c.height / 2 < textbox.y + textbox.height && textbox.isFocused) || !textbox.isFocused) && e.button == 0) {
         if (players[0].MouseDown) //Only run if it actually exists
             players[0].MouseDown(mouse);
         socket.emit("MouseDown", mouse);
@@ -120,7 +139,7 @@ document.onmouseup = e => {
     if (e.button == 0)
         mouse.isDown = false;
     mouse.button[e.button] = false;
-    if (players[0].MouseUp)
+    if (players[0].MouseUp && e.button == 0)
         players[0].MouseUp();
     socket.emit("MouseUp");
 };
@@ -132,10 +151,13 @@ document.onmousemove = e => {
     socket.emit("MouseMove", mouse);
 };
 document.onwheel = e => {
-    mouse.wheel += e.deltaY / 100;
+    let scroll = 0;
+    if (e.deltaY > 0) scroll = 1;
+    else scroll = -1;
+    mouse.wheel += scroll;
     if (players[0].MouseWheel)
-        players[0].MouseWheel(e.deltaY / 100);
-    socket.emit("MouseWheel", e.deltaY / 100);
+        players[0].MouseWheel(scroll);
+    socket.emit("MouseWheel", scroll);
 }
 document.oncontextmenu = e => {
     return false;
@@ -163,7 +185,9 @@ document.onkeydown = e => {
         textbox.cursor++;
         textbox.cursor = Math.min(textbox.cursor, textbox.text.length);
     }
+
     keys[e.key] = true;
+    if (e.key != "F5" && e.key != "F12") e.preventDefault();
 };
 document.onkeyup = e => {
     keys[e.key] = false;
@@ -255,11 +279,19 @@ class MainPlayer extends Player {
         this.shape++;
     }
     MouseWheel(delta) {
-        this.thickness = Math.max(this.thickness + delta, 1);
+        this.thickness = Math.max(this.thickness + delta * (this.thickness / 10), 1);
+        this.thickness = Math.min(this.thickness, 100);
     }
     UndoShape() {
         this.shapes.splice(this.shape - 1, 1);
         this.shape = Math.max(this.shape - 1, 0);
+    }
+    Draw() {
+        super.Draw();
+        ctx.beginPath();
+        let offset = this.thickness / 2 + 5;
+        ctx.arc(offset, offset, this.thickness / 2, 0, Math.PI * 2);
+        ctx.fill();
     }
 }
 class GunPlayer extends Player {
@@ -274,7 +306,10 @@ class GunPlayer extends Player {
         this.visualTimer = 0; //Duration of visual updates
         this.visualAction = 0; //0 is Alive, 1 is Dead, 2 is Respawn Shield
         this.angle = 0; //Current view angle of the player
-
+        this.target = {
+            x: 0,
+            y: 0
+        }
         this.wobble = 20; //adds wobble to the gun, and you have to focus to aim properly
         this.focus = false //Im gonna do whats called a pro gamer move
         this.velocity = {
@@ -283,8 +318,29 @@ class GunPlayer extends Player {
         } //only really used for the recoil tbh
         this.mouseIsDown = false;
         this.rightMouseIsDown = false;
+
+
+        //wall shit and all that
+        this.wallWillBeDeployed = false; //only for a deploy animation
+        this.deployAnimationFrame = 0;
+        this.wallIsDeployed = false;
+        this.wall = {
+            x1: 0,
+            y1: 0,
+            x2: 100,
+            y2: 100,
+            thickness: 10,
+            health: 10,
+            ticks: 0,
+            oX: 0, //Origin
+            oY: 0
+        }
     }
     Update() {
+
+
+
+        this.angle = Math.atan2(this.target.x - this.x, this.target.y - this.y);
         this.x += this.velocity.x;
         this.y += this.velocity.y;
         this.velocity.x *= 0.9;
@@ -293,39 +349,111 @@ class GunPlayer extends Player {
         if (Math.abs(this.velocity.y) < 0.2) this.velocity.y = 0;
         if (this.visualAction == 0 || this.visualAction == 2)
             super.Update();
-
-
-        //bullet update
-        for (let i = 0; i < this.bullets.length; i++) {
-            this.bullets[i].x += Math.sin(this.bullets[i].angle) * this.bullets[i].speed;
-            this.bullets[i].y += Math.cos(this.bullets[i].angle) * this.bullets[i].speed;
-
-            if (this.bullets[i].type == 2) {
-                this.bullets[i].speed *= 1.025;
-            }
-            if (Math.sqrt(this.bullets[i].x ** 2 + this.bullets[i].y ** 2) > 1500) {
-                this.bullets.splice(i, 1);
-                i--;
-                continue;
-            }
-            for (p in players) {
-                let player = players[p];
-                if (player == this) continue;
-                let distX = Math.abs(this.bullets[i].x - player.x) - Math.abs(player.width);
-                let distY = Math.abs(this.bullets[i].y - player.y) - Math.abs(player.height);
-                let dist = Math.sqrt(distX ** 2 + distY ** 2);
-                if (dist < 10 && player.visualAction == 0) {
-                    player.lastEnemy = this;
-                    player.health -= this.bullets[i].damage;
-                    player.health = Math.max(player.health, 0);
-                    if (this.bullets[i].type != 1) {
-                        this.bullets.splice(i, 1);
-                        i--;
-                        continue;
-                    }
+        if (this.wallIsDeployed) {
+            this.wall.ticks++;
+            if (this.wall.ticks > 100 && this.wallWillBeDeployed) {
+                this.wall.ticks = 0;
+                this.wall.health -= 10;
+                if (this.wall.health < 1) {
+                    this.wallWillBeDeployed = false;
                 }
             }
         }
+
+        if (this.wallWillBeDeployed && !this.wallIsDeployed) { //Deploy animation
+            this.deployAnimationFrame++;
+            if (this.deployAnimationFrame > 20) {
+                this.wallIsDeployed = true;
+                this.deployAnimationFrame = 0;
+            }
+        }
+
+        if (!this.wallWillBeDeployed) this.wallIsDeployed = false;
+        //bullet update
+        for (let bruh = 0; bruh < 2; bruh++) {
+            for (let i = 0; i < this.bullets.length; i++) {
+                this.bullets[i].x += Math.sin(this.bullets[i].angle) * this.bullets[i].speed / 2;
+                this.bullets[i].y += Math.cos(this.bullets[i].angle) * this.bullets[i].speed / 2;
+
+                if (this.bullets[i].type == 2) {
+                    this.bullets[i].speed *= Math.sqrt(1.025);
+                }
+                if (Math.sqrt(this.bullets[i].x ** 2 + this.bullets[i].y ** 2) > 1500) {
+                    this.bullets.splice(i, 1);
+                    i--;
+                    continue;
+                }
+                for (p in players) {
+                    let player = players[p];
+                    //now here's something veri cool
+                    if (player.wallIsDeployed) {
+                        let x1 = (this.bullets[i].x - player.wall.x1);
+                        let y1 = (this.bullets[i].y - player.wall.y1);
+
+                        let x2 = (player.wall.x2 - player.wall.x1);
+                        let y2 = (player.wall.y2 - player.wall.y1);
+
+                        let length = Math.sqrt(x2 * x2 + y2 * y2);
+
+                        x2 /= length;
+                        y2 /= length;
+                        let dp = x1 * (x2) + y1 * (y2);
+                        dp /= length;
+                        dp = Math.max(Math.min(dp, 1), 0);
+
+                        let lnx = x2 * dp * length + player.wall.x1;
+                        let lny = y2 * dp * length + player.wall.y1;
+                        let distance = Math.sqrt((lnx - this.bullets[i].x) ** 2 + (lny - this.bullets[i].y) ** 2);
+                        let normalAngle = Math.atan2((this.bullets[i].x - lnx), (this.bullets[i].y - lny));
+                        if (distance < 5 + player.wall.thickness / 2) {
+                            player.wall.health -= 10;
+                            if (player.wall.health < 1) {
+                                player.wallWillBeDeployed = false;
+                            } else {
+                                this.bullets[i].x += Math.sin(normalAngle) * (10 + player.wall.thickness / 2 - distance);
+                                this.bullets[i].y += Math.cos(normalAngle) * (10 + player.wall.thickness / 2 - distance);
+
+                                //we will instead use dynamic collision from Javidx9s video on ball collision
+                                let nx = (lnx - this.bullets[i].x) / distance;
+                                let ny = (lny - this.bullets[i].y) / distance;
+
+                                let tx = -ny;
+                                let ty = nx;
+                                let vCos = Math.sin(this.bullets[i].angle);
+                                let vSin = Math.cos(this.bullets[i].angle);
+                                let dpTan = vCos * tx + vSin * ty;
+                                let dpNorm = vCos * nx + vSin * ny;
+
+                                let angle = Math.atan2(dpTan * tx - dpNorm * nx, dpTan * ty - dpNorm * ny)
+                                this.bullets[i].angle = angle;
+                            }
+
+
+                        }
+                    }
+                    if (player == this) continue;
+                    let distX = Math.abs(this.bullets[i].x - player.x) - Math.abs(player.width);
+                    let distY = Math.abs(this.bullets[i].y - player.y) - Math.abs(player.height);
+                    let dist = Math.sqrt(distX ** 2 + distY ** 2);
+                    if (dist < 10 && player.visualAction == 0) {
+                        player.lastEnemy = this;
+                        player.health -= this.bullets[i].damage;
+                        player.health = Math.max(player.health, 0);
+                        if (this.bullets[i].type != 1) {
+                            this.bullets.splice(i, 1);
+                            i--;
+                            continue;
+                        }
+                    }
+
+
+
+
+
+                }
+            }
+        }
+
         if (this.health < 1 && this.visualAction == 0) {
             this.visualAction = 1;
             this.lastEnemy.score += 20;
@@ -359,8 +487,15 @@ class GunPlayer extends Player {
         //Draw Bullets
         ctx.strokeStyle = "black";
         for (let i = 0; i < this.bullets.length; i++) {
-            let thickness = Math.min(7 - this.bullets[i].speed / 5, 10);
-            let length = Math.max(this.bullets[i].speed / 2 + 10, 10);
+            let thickness = 3;
+            let length = 10;
+            if (this.bullets[i].type == 2) {
+                length = 15;
+                thickness = 5;
+            } else if (this.bullets[i].type == 1) {
+                length = 20;
+                thickness = 2;
+            }
             let vector = {
                 x: Math.sin(this.bullets[i].angle), //used to make some sort of bleh
                 y: Math.cos(this.bullets[i].angle)
@@ -444,7 +579,35 @@ class GunPlayer extends Player {
             ctx.fillStyle = "hsla(" + (Math.sin(this.visualTimer * (Math.PI / 45)) * 20 + 220) + ", 100%,50%, 0.5)";
             ctx.fill();
         }
+        if (this.wallWillBeDeployed && !this.wallIsDeployed) { //Wall is currently deploying
+            if (this.deployAnimationFrame < 10)
+                ctx.lineWidth = this.wall.thickness / 4;
+            else {
+                console.log(ctx.lineWidth);
+                console.log(this.deployAnimationFrame / 5);
+                ctx.lineWidth = this.wall.thickness / 4 * (this.deployAnimationFrame / 5);
 
+            }
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "black";
+            ctx.beginPath();
+            ctx.moveTo((this.wall.x1 - this.wall.oX) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oX + c.width / 2, (this.wall.y1 - this.wall.oY) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oY + c.height / 2);
+            ctx.lineTo((this.wall.x2 - this.wall.oX) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oX + c.width / 2, (this.wall.y2 - this.wall.oY) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oY + c.height / 2);
+            ctx.stroke();
+            ctx.lineCap = "flat";
+            ctx.lineWidth = 1;
+        }
+        if (this.wallIsDeployed && this.wallWillBeDeployed) {
+            ctx.lineWidth = this.wall.thickness * (this.wall.health / 100);
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "black";
+            ctx.beginPath();
+            ctx.moveTo(this.wall.x1 + c.width / 2, this.wall.y1 + c.height / 2);
+            ctx.lineTo(this.wall.x2 + c.width / 2, this.wall.y2 + c.height / 2);
+            ctx.stroke();
+            ctx.lineCap = "flat";
+            ctx.lineWidth = 1;
+        }
 
     }
     MouseDown(mouse) {
@@ -454,7 +617,12 @@ class GunPlayer extends Player {
             this.rightMouseIsDown = true;
     }
     MouseMove(pos) {
-        this.angle = Math.atan2(pos.x - this.x, pos.y - this.y);
+        // this.angle = Math.atan2(pos.x - this.x, pos.y - this.y);
+        // this.target = {
+        //     x: pos.x - this.x,
+        //     y: pos.y - this.y
+        // };
+        this.target = copyObject(pos);
     }
     MouseUp() {
         this.mouseIsDown = false;
@@ -523,6 +691,26 @@ class GunPlayer extends Player {
             if (this.gun == 2) this.cooldown %= 50;
         }
     }
+    DeployWall() {
+        this.wallWillBeDeployed = true;
+        this.wall.health = 100;
+        let sin = Math.sin(this.angle);
+        let cos = Math.cos(this.angle);
+        let up = {
+            x: sin * 30 - cos * 20 + this.x,
+            y: cos * 30 + sin * 20 + this.y
+        }
+        let down = {
+            x: sin * 30 + cos * 20 + this.x,
+            y: cos * 30 - sin * 20 + this.y
+        }
+        this.wall.x1 = up.x;
+        this.wall.y1 = up.y;
+        this.wall.x2 = down.x;
+        this.wall.y2 = down.y;
+        this.wall.oX = sin * 30 + this.x;
+        this.wall.oY = cos * 30 + this.y;
+    }
 }
 let validRooms = ["main", "gun"]; //do you really want to go to any other room
 function DoCommand(input) {
@@ -549,6 +737,16 @@ function DoCommand(input) {
                 break;
             }
         }
+    } else if (texts[0] == "setname") {
+        texts.splice(0, 1);
+        let inputName = texts.join(" ");
+        players[0].name = inputName;
+        socket.emit("SetName", (inputName));
+    } else if (texts[0] == "setcolour") {
+        texts.splice(0, 1);
+        let inputColour = texts.join(" ");
+        players[0].colour = inputColour;
+        socket.emit("SetColour", (inputColour));
     }
 }
 
@@ -620,6 +818,7 @@ let yourmov = {
 }
 let undoed = false;
 let entered = false;
+ctx.lineJoin = 'round';
 //Main Loop
 function Loop() {
     ctx.clearRect(0, 0, c.width, c.height);
@@ -654,7 +853,7 @@ function Loop() {
         socket.emit("UndoShape");
         players[0].UndoShape();
         undoed = true;
-    } else if (!(keys["Control"] && keys["z"])) {
+    } else if ((!keys["Control"] || !keys["z"]) && room == "main") {
         undoed = false;
     }
     if (((keys["Enter"] && !entered) || keys["t"]) && !textbox.isFocused) {
@@ -676,6 +875,9 @@ function Loop() {
     }
     if (!keys["Enter"]) {
         entered = false;
+    }
+    if (keys["e"] && room == "gun" && !players[0].wallIsDeployed) {
+        players[0].DeployWall();
     }
     if (!sameObject(yourmov, players[0].mov)) {
         yourmov = copyObject(players[0].mov);
