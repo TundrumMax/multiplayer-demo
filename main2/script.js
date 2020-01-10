@@ -878,6 +878,7 @@ function Loop() {
     }
     if (keys["e"] && room == "gun" && !players[0].wallIsDeployed && !textbox.isFocused) {
         players[0].DeployWall();
+        socket.emit("DeployWall", players[0].angle);
     }
     if (!sameObject(yourmov, players[0].mov)) {
         yourmov = copyObject(players[0].mov);

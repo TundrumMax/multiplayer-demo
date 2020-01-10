@@ -73,7 +73,19 @@ io.on("connection", function (socket) {
     angle: 0,
     paint: "black",
     thickness: 1,
-    mouseIsDown: false
+    mouseIsDown: false,
+    wallIsDeployed: false,
+    wall: {
+      x1: 0,
+      y1: 0,
+      x2: 100,
+      y2: 100,
+      thickness: 10,
+      health: 10,
+      ticks: 0,
+      oX: 0, //Origin
+      oY: 0
+    }
   };
 
   console.log(id + " joined!");
@@ -217,6 +229,27 @@ io.on("connection", function (socket) {
       clients[id].gun %= 3;
       while (clients[id].gun < 0) clients[id].gun += 3;
     }
+  })
+  socket.on("DeployWall", (angle) => {
+    socket.to(clients[id].room).emit("DeployWall", id);
+    clients[id].wallWillBeDeployed = true;
+    clients[id].wall.health = 100;
+    let sin = Math.sin(angle);
+    let cos = Math.cos(angle);
+    let up = {
+      x: sin * 30 - cos * 20 + clients[id].x,
+      y: cos * 30 + sin * 20 + clients[id].y
+    }
+    let down = {
+      x: sin * 30 + cos * 20 + clients[id].x,
+      y: cos * 30 - sin * 20 + clients[id].y
+    }
+    clients[id].wall.x1 = up.x;
+    clients[id].wall.y1 = up.y;
+    clients[id].wall.x2 = down.x;
+    clients[id].wall.y2 = down.y;
+    clients[id].wall.oX = sin * 30 + clients[id].x;
+    clients[id].wall.oY = cos * 30 + clients[id].y;
   })
 })
 
