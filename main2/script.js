@@ -7,6 +7,81 @@ let ctx = c.getContext("2d");
 let socket = io();
 let id = socket.id;
 let room = "main"
+let roomElements = [];
+let gunMaps = [
+    [{
+        type: "wall",
+        data: {
+            x1: 100,
+            y1: 100,
+            x2: 200,
+            y2: 100,
+            health: 100,
+            thickness: 10,
+            wallIsAlive: true,
+            timer: 0
+        }
+    }, {
+        type: "wall",
+        data: {
+            x1: -100,
+            y1: 100,
+            x2: -200,
+            y2: 100,
+            health: 100,
+            thickness: 10,
+            wallIsAlive: true,
+            timer: 0
+        }
+    }, {
+        type: "wall",
+        data: {
+            x1: 0,
+            y1: -100,
+            x2: 0,
+            y2: -200,
+            health: 100,
+            thickness: 10,
+            wallIsAlive: true,
+            timer: 0
+        }
+    }, {
+        type: "wall",
+        data: {
+            x1: -300,
+            y1: -100,
+            x2: -300,
+            y2: -200,
+            health: 100,
+            thickness: 10,
+            wallIsAlive: true,
+            timer: 0
+        }
+    }, {
+        type: "wall",
+        data: {
+            x1: 300,
+            y1: -100,
+            x2: 300,
+            y2: -200,
+            health: 100,
+            thickness: 10,
+            wallIsAlive: true,
+            timer: 0
+        }
+    }, ]
+]
+
+function SetupRoom() {
+    if (room == "main") {
+        roomElements.splice(0, roomElements.length); //main room doesnt have anything
+    }
+    if (room == "gun") {
+        roomElements.splice(0, roomElements.length);
+        for (let i = 0; i < gunMaps[0].length; i++)
+            roomElements.push(gunMaps[0][i]);
+    }
+}
 
 function GeneratePlayer() {
     switch (room) {
@@ -406,7 +481,15 @@ class GunPlayer extends Player {
                         let distance = Math.sqrt((lnx - this.bullets[i].x) ** 2 + (lny - this.bullets[i].y) ** 2);
                         let normalAngle = Math.atan2((this.bullets[i].x - lnx), (this.bullets[i].y - lny));
                         if (distance < 5 + player.wall.thickness / 2) {
-                            player.wall.health -= 10;
+                            player.wall.health -= this.bullets[i].damage / 2;
+                            if (this.bullets[i].type == 2 && player.wallIsDeployed) {
+                                this.bullets.splice(i, 1);
+                                i--;
+                                if (player.wall.health < 1) {
+                                    player.wallWillBeDeployed = false;
+                                }
+                                break;
+                            }
                             if (player.wall.health < 1) {
                                 player.wallWillBeDeployed = false;
                             } else {
@@ -451,7 +534,64 @@ class GunPlayer extends Player {
 
 
                 }
+                if (!this.bullets[i]) break;
+                for (let j = 0; j < roomElements.length; j++) {
+                    if (roomElements[j].type == "wall") {
+                        let x1 = (this.bullets[i].x - roomElements[j].data.x1);
+                        let y1 = (this.bullets[i].y - roomElements[j].data.y1);
+
+                        let x2 = (roomElements[j].data.x2 - roomElements[j].data.x1);
+                        let y2 = (roomElements[j].data.y2 - roomElements[j].data.y1);
+
+                        let length = Math.sqrt(x2 * x2 + y2 * y2);
+
+                        x2 /= length;
+                        y2 /= length;
+                        let dp = x1 * (x2) + y1 * (y2);
+                        dp /= length;
+                        dp = Math.max(Math.min(dp, 1), 0);
+
+                        let lnx = x2 * dp * length + roomElements[j].data.x1;
+                        let lny = y2 * dp * length + roomElements[j].data.y1;
+                        let distance = Math.sqrt((lnx - this.bullets[i].x) ** 2 + (lny - this.bullets[i].y) ** 2);
+                        let normalAngle = Math.atan2((this.bullets[i].x - lnx), (this.bullets[i].y - lny));
+                        if (distance < 5 + roomElements[j].data.thickness / 2) {
+                            roomElements[j].data.health -= this.bullets[i].damage / 2;
+                            if (this.bullets[i].type == 2 && roomElements[j].data.wallIsAlive) {
+                                this.bullets.splice(i, 1);
+                                i--;
+                                if (roomElements[j].data.health < 1) {
+                                    roomElements[j].data.wallIsAlive = false;
+                                }
+                                break;
+                            }
+                            if (roomElements[j].data.health < 1) {
+                                roomElements[j].data.wallIsAlive = false;
+                            } else {
+                                this.bullets[i].x += Math.sin(normalAngle) * (10 + roomElements[j].data.thickness / 2 - distance);
+                                this.bullets[i].y += Math.cos(normalAngle) * (10 + roomElements[j].data.thickness / 2 - distance);
+
+                                //we will instead use dynamic collision from Javidx9s video on ball collision
+                                let nx = (lnx - this.bullets[i].x) / distance;
+                                let ny = (lny - this.bullets[i].y) / distance;
+
+                                let tx = -ny;
+                                let ty = nx;
+                                let vCos = Math.sin(this.bullets[i].angle);
+                                let vSin = Math.cos(this.bullets[i].angle);
+                                let dpTan = vCos * tx + vSin * ty;
+                                let dpNorm = vCos * nx + vSin * ny;
+
+                                let angle = Math.atan2(dpTan * tx - dpNorm * nx, dpTan * ty - dpNorm * ny)
+                                this.bullets[i].angle = angle;
+                            }
+
+
+                        }
+                    }
+                }
             }
+
         }
 
         if (this.health < 1 && this.visualAction == 0) {
@@ -727,7 +867,7 @@ function DoCommand(input) {
                     if (player != 0)
                         delete players[player];
                 }
-
+                SetupRoom();
                 let p = GeneratePlayer();
                 p.name = players[0].name;
                 p.colour = players[0].colour;
@@ -891,6 +1031,37 @@ function Loop() {
         let player = players[p];
         player.Update();
         player.Draw();
+    }
+    for (let i = 0; i < roomElements.length; i++) {
+        if (roomElements[i].type == "wall") {
+            if (roomElements[i].data.wallIsAlive) {
+                roomElements[i].data.timer = 0; //this is in case the timer isnt 0 when the wall comes back
+                ctx.lineWidth = roomElements[i].data.thickness * (roomElements[i].data.health / 100);
+                ctx.lineCap = "round";
+                ctx.strokeStyle = "black";
+                ctx.beginPath();
+                ctx.moveTo(roomElements[i].data.x1 + c.width / 2, roomElements[i].data.y1 + c.height / 2);
+                ctx.lineTo(roomElements[i].data.x2 + c.width / 2, roomElements[i].data.y2 + c.height / 2);
+                ctx.stroke();
+                ctx.lineCap = "flat";
+                ctx.lineWidth = 1;
+            } else {
+                roomElements[i].data.timer++;
+                ctx.lineWidth = roomElements[i].data.thickness;
+                ctx.lineCap = "round";
+                ctx.strokeStyle = "rgba(0,0,0," + (Math.sin(roomElements[i].data.timer / 10) / 2 + 0.5) + ")";
+                ctx.beginPath();
+                ctx.moveTo(roomElements[i].data.x1 + c.width / 2, roomElements[i].data.y1 + c.height / 2);
+                ctx.lineTo(roomElements[i].data.x2 + c.width / 2, roomElements[i].data.y2 + c.height / 2);
+                ctx.stroke();
+                ctx.lineCap = "flat";
+                ctx.lineWidth = 1;
+                if (roomElements[i].data.timer > 200) {
+                    roomElements[i].data.health = 100;
+                    roomElements[i].data.wallIsAlive = true;
+                }
+            }
+        }
     }
     textbox.update();
     textbox.draw();
