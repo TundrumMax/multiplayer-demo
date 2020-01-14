@@ -313,6 +313,7 @@ class MainPlayer extends Player {
         this.DrawShapes();
     }
     DrawShapes() {
+        ctx.lineCap = "round";
         for (let shape = 0; shape < this.shapes.length; shape++) {
             ctx.strokeStyle = this.shapes[shape][0].x;
             ctx.lineWidth = this.shapes[shape][0].y;
@@ -323,6 +324,7 @@ class MainPlayer extends Player {
             }
             ctx.stroke();
         }
+        ctx.lineCap = "flat";
     }
     MouseDown(position = {
         x: mouse.x,
@@ -360,13 +362,6 @@ class MainPlayer extends Player {
     UndoShape() {
         this.shapes.splice(this.shape - 1, 1);
         this.shape = Math.max(this.shape - 1, 0);
-    }
-    Draw() {
-        super.Draw();
-        ctx.beginPath();
-        let offset = this.thickness / 2 + 5;
-        ctx.arc(offset, offset, this.thickness / 2, 0, Math.PI * 2);
-        ctx.fill();
     }
 }
 class GunPlayer extends Player {
@@ -989,7 +984,7 @@ function Loop() {
         }
     }
 
-    if (keys["Control"] && keys["z"] && !undoed && room == "main") { //undo
+    if (keys["Control"] && keys["z"] && !undoed && room == "main" && !mouse.isDown) { //undo
         socket.emit("UndoShape");
         players[0].UndoShape();
         undoed = true;
@@ -1032,6 +1027,10 @@ function Loop() {
         player.Update();
         player.Draw();
     }
+    ctx.beginPath();
+    let offset = players[0].thickness / 2 + 5;
+    ctx.arc(offset, offset, players[0].thickness / 2, 0, Math.PI * 2);
+    ctx.fill();
     for (let i = 0; i < roomElements.length; i++) {
         if (roomElements[i].type == "wall") {
             if (roomElements[i].data.wallIsAlive) {
