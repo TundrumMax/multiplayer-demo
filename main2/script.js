@@ -322,7 +322,7 @@ class MainPlayer extends Player {
             if (this.shapes[shape].length < 3) {
                 ctx.fillStyle = this.shapes[shape][0].x;
                 ctx.beginPath();
-                ctx.arc(this.shapes[shape][1].x + c.width / 2, this.shapes[shape][1].y + c.height / 2, this.shapes[shape][0].y, 0, 2 * Math.PI);
+                ctx.arc(this.shapes[shape][1].x + c.width / 2, this.shapes[shape][1].y + c.height / 2, this.shapes[shape][0].y / 2, 0, 2 * Math.PI);
                 ctx.fill();
             } else {
                 ctx.strokeStyle = this.shapes[shape][0].x;
