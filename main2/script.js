@@ -314,15 +314,26 @@ class MainPlayer extends Player {
     }
     DrawShapes() {
         ctx.lineCap = "round";
+
         for (let shape = 0; shape < this.shapes.length; shape++) {
-            ctx.strokeStyle = this.shapes[shape][0].x;
-            ctx.lineWidth = this.shapes[shape][0].y;
-            ctx.beginPath();
-            for (let i = 1; i < this.shapes[shape].length; i++) {
-                if (i == 1) ctx.moveTo(this.shapes[shape][i].x + c.width / 2, this.shapes[shape][i].y + c.height / 2);
-                else ctx.lineTo(this.shapes[shape][i].x + c.width / 2, this.shapes[shape][i].y + c.height / 2);
+
+
+
+            if (this.shapes[shape].length < 3) {
+                ctx.fillStyle = this.shapes[shape][0].x;
+                ctx.beginPath();
+                ctx.arc(this.shapes[shape][1].x + c.width / 2, this.shapes[shape][1].y + c.height / 2, this.shapes[shape][0].y, 0, 2 * Math.PI);
+                ctx.fill();
+            } else {
+                ctx.strokeStyle = this.shapes[shape][0].x;
+                ctx.lineWidth = this.shapes[shape][0].y;
+                ctx.beginPath();
+                for (let i = 1; i < this.shapes[shape].length; i++) {
+                    if (i == 1) ctx.moveTo(this.shapes[shape][i].x + c.width / 2, this.shapes[shape][i].y + c.height / 2);
+                    else ctx.lineTo(this.shapes[shape][i].x + c.width / 2, this.shapes[shape][i].y + c.height / 2);
+                }
+                ctx.stroke();
             }
-            ctx.stroke();
         }
         ctx.lineCap = "flat";
     }
