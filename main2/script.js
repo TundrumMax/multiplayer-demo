@@ -219,11 +219,16 @@ document.onmouseup = e => {
     socket.emit("MouseUp");
 };
 document.onmousemove = e => {
+    mouse.old.x = mouse.x;
+    mouse.old.y = mouse.y;
     mouse.x = e.clientX - c.getBoundingClientRect().left - c.width / 2;
     mouse.y = e.clientY - c.getBoundingClientRect().top - c.height / 2;
-    if (players[0].MouseMove)
+    if (players[0].MouseMove) {
+        let angle = players[0].angle;
         players[0].MouseMove(mouse);
-    socket.emit("MouseMove", mouse);
+    }
+    if (((mouse.old.x != mouse.x || mouse.old.y != mouse.y) && room != "main") || (mouse.isDown && room == "main"))
+        socket.emit("MouseMove", mouse);
 };
 document.onwheel = e => {
     let scroll = 0;
@@ -237,7 +242,9 @@ document.onwheel = e => {
 document.oncontextmenu = e => {
     return false;
 }
-
+window.addEventListener("beforeunload", () => {
+    socket.disconnect();
+})
 let keys = [];
 document.onkeydown = e => {
     if (textbox.isFocused && ((e.keyCode > 46 && e.keyCode < 91) || e.keyCode == 32 || (e.keyCode > 105 && e.keyCode < 112) || (e.keyCode > 145))) {
@@ -531,7 +538,7 @@ class GunPlayer extends Player {
                         if (this.bullets[i].type != 1) {
                             this.bullets.splice(i, 1);
                             i--;
-                            continue;
+                            break;
                         }
                     }
 
@@ -540,7 +547,7 @@ class GunPlayer extends Player {
 
 
                 }
-                if (!this.bullets[i]) break;
+                if (!this.bullets[i]) continue;
                 for (let j = 0; j < roomElements.length; j++) {
                     if (roomElements[j].type == "wall") {
                         let x1 = (this.bullets[i].x - roomElements[j].data.x1);
@@ -619,6 +626,73 @@ class GunPlayer extends Player {
         if (this.visualAction == 2 && this.visualTimer > 360) {
             this.visualAction = 0;
             this.visualTimer = 0;
+        }
+        //collide players with enviromental walls too
+        for (let i = 0; i < roomElements.length; i++) {
+            if (roomElements[i].type != "wall") continue;
+            if (roomElements[i].data.wallIsAlive) {
+                let x1 = (this.x - roomElements[i].data.x1);
+                let y1 = (this.y - roomElements[i].data.y1);
+
+                let x2 = (roomElements[i].data.x2 - roomElements[i].data.x1);
+                let y2 = (roomElements[i].data.y2 - roomElements[i].data.y1);
+
+                let length = Math.sqrt(x2 * x2 + y2 * y2);
+
+                x2 /= length;
+                y2 /= length;
+                let dp = x1 * (x2) + y1 * (y2);
+                dp /= length;
+                dp = Math.max(Math.min(dp, 1), 0);
+
+                let lnx = x2 * dp * length + roomElements[i].data.x1;
+                let lny = y2 * dp * length + roomElements[i].data.y1;
+                let distance = Math.sqrt((lnx - this.x) ** 2 + (lny - this.y) ** 2);
+                let normalAngle = Math.atan2((this.x - lnx), (this.y - lny));
+                if (distance < Math.max(this.width, this.height) / 2 + (roomElements[i].data.thickness * roomElements[i].data.health / 100) / 2) {
+
+
+                    this.x += Math.sin(normalAngle) * (Math.max(this.width, this.height) / 2 + (roomElements[i].data.thickness * roomElements[i].data.health / 100) / 2 - distance);
+                    this.y += Math.cos(normalAngle) * (Math.max(this.width, this.height) / 2 + (roomElements[i].data.thickness * roomElements[i].data.health / 100) / 2 - distance);
+
+
+
+                }
+            }
+
+        }
+        for (player in players) {
+            let p = players[player];
+            if (p.wallIsDeployed) {
+                let x1 = (this.x - p.wall.x1);
+                let y1 = (this.y - p.wall.y1);
+
+                let x2 = (p.wall.x2 - p.wall.x1);
+                let y2 = (p.wall.y2 - p.wall.y1);
+
+                let length = Math.sqrt(x2 * x2 + y2 * y2);
+
+                x2 /= length;
+                y2 /= length;
+                let dp = x1 * (x2) + y1 * (y2);
+                dp /= length;
+                dp = Math.max(Math.min(dp, 1), 0);
+
+                let lnx = x2 * dp * length + p.wall.x1;
+                let lny = y2 * dp * length + p.wall.y1;
+                let distance = Math.sqrt((lnx - this.x) ** 2 + (lny - this.y) ** 2);
+                let normalAngle = Math.atan2((this.x - lnx), (this.y - lny));
+                if (distance < Math.max(this.width, this.height) / 2 + (p.wall.thickness * p.wall.health / 100) / 2) {
+
+
+                    this.x += Math.sin(normalAngle) * (Math.max(this.width, this.height) / 2 + (p.wall.thickness * p.wall.health / 100) / 2 - distance);
+                    this.y += Math.cos(normalAngle) * (Math.max(this.width, this.height) / 2 + (p.wall.thickness * p.wall.health / 100) / 2 - distance);
+
+
+
+                }
+            }
+
         }
     }
     Draw() {
@@ -818,8 +892,8 @@ class GunPlayer extends Player {
             let bullet = {
                 type: this.gun,
                 speed: speed,
-                x: this.x + Math.sin(angle) * speed, //offset it so that you cant see the bullet behind the player
-                y: this.y + Math.cos(angle) * speed,
+                x: this.x, //offset it so that you cant see the bullet behind the player
+                y: this.y,
                 // angle: Math.atan2(mouse.x - this.x - c.width / 2, mouse.y - this.y - c.height / 2),
                 angle: angle,
                 damage: damage

@@ -121,8 +121,8 @@ io.on("connection", function (socket) {
   })
   socket.on("disconnect", () => {
     socket.to(clients[id].room).emit("PlayerLeave", id);
+    console.log(clients[id].name + "disconnected..");
     delete clients[id];
-    console.log(id + " left...");
   })
   socket.on("message", (message) => {
     console.log(clients[id].name + ": " + message);
