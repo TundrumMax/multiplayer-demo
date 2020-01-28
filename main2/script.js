@@ -75,11 +75,15 @@ let gunMaps = [
 function SetupRoom() {
     if (room == "main") {
         roomElements.splice(0, roomElements.length); //main room doesnt have anything
+        camera.bounds.x = c.width / 8 * 3;
+        camera.bounds.y = c.height / 8 * 3;
     }
     if (room == "gun") {
         roomElements.splice(0, roomElements.length);
         for (let i = 0; i < gunMaps[0].length; i++)
             roomElements.push(gunMaps[0][i]);
+        camera.bounds.x = 600;
+        camera.bounds.y = 400;
     }
 }
 
@@ -177,6 +181,7 @@ socket.on("message", (id, message) => {
         newMessages.push(message);
     }
     for (let i = 0; i < newMessages.length; i++) messages.push(newMessages[i]);
+    messageBoxFade = 0;
 })
 socket.on("SendData", (id, data) => {
     setObject(players[id], data);
@@ -199,13 +204,21 @@ document.onmousedown = e => {
 
     mouse.old.x = e.clientX;
     mouse.old.y = e.clientY;
-    if (e.button == 0)
+    let temp = {
+        x: mouse.x + camera.x,
+        y: mouse.y + camera.y,
+        button: []
+    }
+    if (e.button == 0) {
         mouse.isDown = true;
+        temp.isDown = true;
+    }
     mouse.button[e.button] = true;
+    temp.button[e.button] = true;
     if ((!(mouse.x + c.width / 2 > textbox.x && mouse.x + c.width / 2 < textbox.x + textbox.width && mouse.y + c.height / 2 > textbox.y && mouse.y + c.height / 2 < textbox.y + textbox.height && textbox.isFocused) || !textbox.isFocused) && e.button == 0) {
         if (players[0].MouseDown) //Only run if it actually exists
-            players[0].MouseDown(mouse);
-        socket.emit("MouseDown", mouse);
+            players[0].MouseDown(temp);
+        socket.emit("MouseDown", temp);
         textbox.isFocused = false;
     }
 
@@ -223,12 +236,15 @@ document.onmousemove = e => {
     mouse.old.y = mouse.y;
     mouse.x = e.clientX - c.getBoundingClientRect().left - c.width / 2;
     mouse.y = e.clientY - c.getBoundingClientRect().top - c.height / 2;
+    let temp = {
+        x: mouse.x + camera.x,
+        y: mouse.y + camera.y
+    }
     if (players[0].MouseMove) {
-        let angle = players[0].angle;
-        players[0].MouseMove(mouse);
+        players[0].MouseMove(temp);
     }
     if (((mouse.old.x != mouse.x || mouse.old.y != mouse.y) && room != "main") || (mouse.isDown && room == "main"))
-        socket.emit("MouseMove", mouse);
+        socket.emit("MouseMove", temp);
 };
 document.onwheel = e => {
     let scroll = 0;
@@ -299,12 +315,12 @@ class Player {
     Draw() {
         //you
         ctx.fillStyle = this.colour;
-        ctx.fillRect(this.x - this.width / 2 + c.width / 2, this.y - this.height / 2 + c.height / 2, this.width, this.height);
+        ctx.fillRect(this.x - this.width / 2 + c.width / 2 - camera.x, this.y - this.height / 2 + c.height / 2 - camera.y, this.width, this.height);
 
         //your name
         ctx.fillStyle = "black";
         let nameWidth = ctx.measureText(this.name).width;
-        ctx.fillText(this.name, this.x - nameWidth / 2 + c.width / 2, this.y + this.height / 2 + c.height / 2 + 10);
+        ctx.fillText(this.name, this.x - nameWidth / 2 + c.width / 2 - camera.x, this.y + this.height / 2 + c.height / 2 + 10 - camera.y);
     }
 }
 class MainPlayer extends Player {
@@ -329,15 +345,15 @@ class MainPlayer extends Player {
             if (this.shapes[shape].length < 3) {
                 ctx.fillStyle = this.shapes[shape][0].x;
                 ctx.beginPath();
-                ctx.arc(this.shapes[shape][1].x + c.width / 2, this.shapes[shape][1].y + c.height / 2, this.shapes[shape][0].y / 2, 0, 2 * Math.PI);
+                ctx.arc(this.shapes[shape][1].x + c.width / 2 - camera.x, this.shapes[shape][1].y + c.height / 2 - camera.y, this.shapes[shape][0].y / 2, 0, 2 * Math.PI);
                 ctx.fill();
             } else {
                 ctx.strokeStyle = this.shapes[shape][0].x;
                 ctx.lineWidth = this.shapes[shape][0].y;
                 ctx.beginPath();
                 for (let i = 1; i < this.shapes[shape].length; i++) {
-                    if (i == 1) ctx.moveTo(this.shapes[shape][i].x + c.width / 2, this.shapes[shape][i].y + c.height / 2);
-                    else ctx.lineTo(this.shapes[shape][i].x + c.width / 2, this.shapes[shape][i].y + c.height / 2);
+                    if (i == 1) ctx.moveTo(this.shapes[shape][i].x + c.width / 2 - camera.x, this.shapes[shape][i].y + c.height / 2 - camera.y);
+                    else ctx.lineTo(this.shapes[shape][i].x + c.width / 2 - camera.x, this.shapes[shape][i].y + c.height / 2 - camera.y);
                 }
                 ctx.stroke();
             }
@@ -437,6 +453,13 @@ class GunPlayer extends Player {
         if (Math.abs(this.velocity.y) < 0.2) this.velocity.y = 0;
         if (this.visualAction == 0 || this.visualAction == 2)
             super.Update();
+
+        if (this.x - this.width / 2 < -camera.bounds.x) this.x = -camera.bounds.x + this.width / 2;
+        if (this.x + this.width / 2 > camera.bounds.x) this.x = camera.bounds.x - this.width / 2;
+        if (this.y - this.height / 2 < -camera.bounds.y) this.y = -camera.bounds.y + this.height / 2;
+        if (this.y + this.height / 2 > camera.bounds.y) this.y = camera.bounds.y - this.height / 2;
+
+
         if (this.wallIsDeployed) {
             this.wall.ticks++;
             if (this.wall.ticks > 100 && this.wallWillBeDeployed) {
@@ -698,11 +721,11 @@ class GunPlayer extends Player {
     Draw() {
         //Health bar, cuz we need to see how much health you have, you know?
         ctx.fillStyle = "red";
-        ctx.fillRect(this.x - 75 / 2 + c.width / 2, this.y - 20 + c.height / 2, 75, 7);
+        ctx.fillRect(this.x - 75 / 2 + c.width / 2 - camera.x, this.y - 20 + c.height / 2 - camera.y, 75, 7);
         ctx.fillStyle = "green";
-        ctx.fillRect(this.x - 75 / 2 + c.width / 2, this.y - 20 + c.height / 2, this.health / (1 / 3 + 1), 7);
+        ctx.fillRect(this.x - 75 / 2 + c.width / 2 - camera.x, this.y - 20 + c.height / 2 - camera.y, this.health / (1 / 3 + 1), 7);
         ctx.strokeStyle = "black";
-        ctx.strokeRect(this.x - 75 / 2 + c.width / 2, this.y - 20 + c.height / 2, 75, 7);
+        ctx.strokeRect(this.x - 75 / 2 + c.width / 2 - camera.x, this.y - 20 + c.height / 2 - camera.y, 75, 7);
 
         //Draw Bullets
         ctx.strokeStyle = "black";
@@ -722,8 +745,8 @@ class GunPlayer extends Player {
             }
             ctx.lineWidth = thickness;
             ctx.beginPath();
-            ctx.moveTo(this.bullets[i].x - (vector.x * length) + c.width / 2, this.bullets[i].y - (vector.y * length) + c.height / 2);
-            ctx.lineTo(this.bullets[i].x + c.width / 2, this.bullets[i].y + c.height / 2);
+            ctx.moveTo(this.bullets[i].x - (vector.x * length) + c.width / 2 - camera.x, this.bullets[i].y - (vector.y * length) + c.height / 2 - camera.y);
+            ctx.lineTo(this.bullets[i].x + c.width / 2 - camera.x, this.bullets[i].y + c.height / 2 - camera.y);
             ctx.stroke();
             ctx.lineWidth = 1;
         }
@@ -739,8 +762,8 @@ class GunPlayer extends Player {
         ctx.lineWidth = thickness;
         ctx.strokeStyle = "#7F7F7F";
         ctx.beginPath();
-        ctx.moveTo(this.x + c.width / 2, this.y + c.height / 2);
-        ctx.lineTo(this.x + x * length + c.width / 2, this.y + y * length + c.height / 2);
+        ctx.moveTo(this.x + c.width / 2 - camera.x, this.y + c.height / 2 - camera.y);
+        ctx.lineTo(this.x + x * length + c.width / 2 - camera.x, this.y + y * length + c.height / 2 - camera.y);
         ctx.stroke();
         ctx.lineWidth = 1;
         ctx.strokeStyle = "#000";
@@ -752,18 +775,18 @@ class GunPlayer extends Player {
             let a1y = Math.cos(this.angle - wAngle);
             let a2x = Math.sin(this.angle + wAngle);
             let a2y = Math.cos(this.angle + wAngle);
-            let aimGradient1 = ctx.createRadialGradient(this.x + c.width / 2, this.y + c.height / 2, 10, this.x + c.width / 2, this.y + c.height / 2, 100);
+            let aimGradient1 = ctx.createRadialGradient(this.x + c.width / 2 - camera.x, this.y + c.height / 2 - camera.y, 10, this.x + c.width / 2 - camera.x, this.y + c.height / 2 - camera.y, 100);
             aimGradient1.addColorStop(0, "rgba(255,0,0,0)");
             aimGradient1.addColorStop(1, "rgba(255,0,0," + (1 - this.wobble / 20) + ")");
 
             ctx.strokeStyle = aimGradient1;
             ctx.beginPath();
-            ctx.moveTo(this.x + a1x * 20 + c.width / 2, this.y + a1y * 20 + c.height / 2);
-            ctx.lineTo(this.x + a1x * 100 + c.width / 2, this.y + a1y * 100 + c.height / 2);
+            ctx.moveTo(this.x + a1x * 20 + c.width / 2 - camera.x, this.y + a1y * 20 + c.height / 2 - camera.y);
+            ctx.lineTo(this.x + a1x * 100 + c.width / 2 - camera.x, this.y + a1y * 100 + c.height / 2 - camera.y);
             ctx.stroke();
             ctx.beginPath();
-            ctx.moveTo(this.x + a2x * 20 + c.width / 2, this.y + a2y * 20 + c.height / 2);
-            ctx.lineTo(this.x + a2x * 100 + c.width / 2, this.y + a2y * 100 + c.height / 2);
+            ctx.moveTo(this.x + a2x * 20 + c.width / 2 - camera.x, this.y + a2y * 20 + c.height / 2 - camera.y);
+            ctx.lineTo(this.x + a2x * 100 + c.width / 2 - camera.x, this.y + a2y * 100 + c.height / 2 - camera.y);
             ctx.stroke();
         }
 
@@ -784,18 +807,18 @@ class GunPlayer extends Player {
 
         if (this.visualAction == 1) {
             ctx.beginPath();
-            ctx.moveTo(this.x + (Math.random() * (20 - Math.sqrt(this.visualTimer * 2)) + (20 - Math.sqrt(this.visualTimer * 2))) + c.width / 2, this.y + c.height / 2);
+            ctx.moveTo(this.x + (Math.random() * (20 - Math.sqrt(this.visualTimer * 2)) + (20 - Math.sqrt(this.visualTimer * 2))) + c.width / 2 - camera.x, this.y + c.height / 2 - camera.y);
             for (let a = 1; a < 15; a++) {
                 let amplitude = Math.random() * (20 - Math.sqrt(this.visualTimer * 2)) + (20 - Math.sqrt(this.visualTimer * 2));
                 let angle = a * (Math.PI / 7.5);
-                ctx.lineTo(this.x + Math.cos(angle) * amplitude + c.width / 2, this.y + Math.sin(angle) * amplitude + c.height / 2);
+                ctx.lineTo(this.x + Math.cos(angle) * amplitude + c.width / 2 - camera.x, this.y + Math.sin(angle) * amplitude + c.height / 2 - camera.y);
             }
             ctx.fillStyle = "hsl(" + Math.sqrt(this.visualTimer * 4) + ",100%,50%)";
             ctx.fill();
         }
         if (this.visualAction == 2) {
             ctx.beginPath();
-            ctx.arc(this.x + c.width / 2, this.y + c.height / 2, 15, 0, 2 * Math.PI);
+            ctx.arc(this.x + c.width / 2 - camera.x, this.y + c.height / 2 - camera.y, 15, 0, 2 * Math.PI);
             ctx.fillStyle = "hsla(" + (Math.sin(this.visualTimer * (Math.PI / 45)) * 20 + 220) + ", 100%,50%, 0.5)";
             ctx.fill();
         }
@@ -811,8 +834,8 @@ class GunPlayer extends Player {
             ctx.lineCap = "round";
             ctx.strokeStyle = "black";
             ctx.beginPath();
-            ctx.moveTo((this.wall.x1 - this.wall.oX) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oX + c.width / 2, (this.wall.y1 - this.wall.oY) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oY + c.height / 2);
-            ctx.lineTo((this.wall.x2 - this.wall.oX) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oX + c.width / 2, (this.wall.y2 - this.wall.oY) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oY + c.height / 2);
+            ctx.moveTo((this.wall.x1 - this.wall.oX) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oX + c.width / 2 - camera.x, (this.wall.y1 - this.wall.oY) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oY + c.height / 2 - camera.y);
+            ctx.lineTo((this.wall.x2 - this.wall.oX) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oX + c.width / 2 - camera.x, (this.wall.y2 - this.wall.oY) * Math.min(this.deployAnimationFrame / 10, 1) + this.wall.oY + c.height / 2 - camera.y);
             ctx.stroke();
             ctx.lineCap = "flat";
             ctx.lineWidth = 1;
@@ -822,8 +845,8 @@ class GunPlayer extends Player {
             ctx.lineCap = "round";
             ctx.strokeStyle = "black";
             ctx.beginPath();
-            ctx.moveTo(this.wall.x1 + c.width / 2, this.wall.y1 + c.height / 2);
-            ctx.lineTo(this.wall.x2 + c.width / 2, this.wall.y2 + c.height / 2);
+            ctx.moveTo(this.wall.x1 + c.width / 2 - camera.x, this.wall.y1 + c.height / 2 - camera.y);
+            ctx.lineTo(this.wall.x2 + c.width / 2 - camera.x, this.wall.y2 + c.height / 2 - camera.y);
             ctx.stroke();
             ctx.lineCap = "flat";
             ctx.lineWidth = 1;
@@ -836,13 +859,20 @@ class GunPlayer extends Player {
         if (mouse.button[2])
             this.rightMouseIsDown = true;
     }
-    MouseMove(pos) {
+    MouseMove(pos = {
+        x: mouse.x,
+        y: mouse.y
+    }) {
         // this.angle = Math.atan2(pos.x - this.x, pos.y - this.y);
         // this.target = {
         //     x: pos.x - this.x,
         //     y: pos.y - this.y
         // };
-        this.target = copyObject(pos);
+        let e = {
+            x: pos.x,
+            y: pos.y
+        }
+        this.target = copyObject(e);
     }
     MouseUp() {
         this.mouseIsDown = false;
@@ -854,6 +884,7 @@ class GunPlayer extends Player {
         while (this.gun < 0) this.gun += 3;
     }
     ShootGun(wobb) {
+
         let angle = this.angle;
         angle += wobb;
         //gun update
@@ -873,7 +904,7 @@ class GunPlayer extends Player {
 
 
 
-        if (this.cooldown == 0 && this.mouseIsDown) {
+        if (this.cooldown == 0 && this.mouseIsDown && (this.visualAction == 0)) {
             //recoil
             let recoil = 0.5;
             if (this.gun == 1) recoil = 2;
@@ -1038,6 +1069,26 @@ let yourmov = {
 }
 let undoed = false;
 let entered = false;
+
+let camera = { //owo?
+    x: 0,
+    y: 0,
+    bounds: {
+        x: c.width / 4 * 3 / 2,
+        y: c.height / 4 * 3 / 2
+    },
+    old: {
+        x: 0,
+        y: 0
+    }
+}
+
+
+
+
+
+
+
 ctx.lineJoin = 'round';
 //Main Loop
 function Loop() {
@@ -1045,6 +1096,39 @@ function Loop() {
     let wobble = Math.random() * (players[0].wobble) * (Math.PI / 180) - players[0].wobble / 2 * (Math.PI / 180);
     if (room == "gun")
         players[0].ShootGun(wobble);
+
+    if (room == "main") { //Camera stuff
+        camera.old.x = camera.x;
+        camera.old.y = camera.y;
+        if (players[0].x < camera.bounds.x && players[0].x > -camera.bounds.x && players[0].y < camera.bounds.y && players[0].y > -camera.bounds.y) {
+
+            camera.x += -camera.x / 10; //move to centre
+            camera.y += -camera.y / 10;
+        } else {
+            camera.x += (players[0].x - camera.x) / 10;
+            camera.y += (players[0].y - camera.y) / 10;
+        }
+    } else if (room == "gun") {
+        camera.x += (players[0].x - camera.x) / 10;
+        camera.y += (players[0].y - camera.y) / 10;
+    }
+    ctx.strokeStyle = "grey";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-camera.x + c.width / 2 - camera.bounds.x, -camera.y + c.height / 2 - camera.bounds.y, camera.bounds.x * 2, camera.bounds.y * 2);
+
+
+
+    if (camera.x != camera.old.x && camera.y != camera.old.y) { //camera has moved
+        if ((mouse.isDown && room == "main" && players[0].MouseMove) || (room != "main" && players[0].MouseMove)) {
+            let temp = {
+                x: mouse.x + camera.x,
+                y: mouse.y + camera.y
+            }
+            players[0].MouseMove(temp);
+            socket.emit("MouseMove", temp);
+        }
+    }
+
     players[0].mov.x = 0;
     players[0].mov.y = 0;
     if (!textbox.isFocused) {
@@ -1124,8 +1208,8 @@ function Loop() {
                 ctx.lineCap = "round";
                 ctx.strokeStyle = "black";
                 ctx.beginPath();
-                ctx.moveTo(roomElements[i].data.x1 + c.width / 2, roomElements[i].data.y1 + c.height / 2);
-                ctx.lineTo(roomElements[i].data.x2 + c.width / 2, roomElements[i].data.y2 + c.height / 2);
+                ctx.moveTo(roomElements[i].data.x1 + c.width / 2 - camera.x, roomElements[i].data.y1 + c.height / 2 - camera.y);
+                ctx.lineTo(roomElements[i].data.x2 + c.width / 2 - camera.x, roomElements[i].data.y2 + c.height / 2 - camera.y);
                 ctx.stroke();
                 ctx.lineCap = "flat";
                 ctx.lineWidth = 1;
@@ -1135,8 +1219,8 @@ function Loop() {
                 ctx.lineCap = "round";
                 ctx.strokeStyle = "rgba(0,0,0," + (Math.sin(roomElements[i].data.timer / 10) / 2 + 0.5) + ")";
                 ctx.beginPath();
-                ctx.moveTo(roomElements[i].data.x1 + c.width / 2, roomElements[i].data.y1 + c.height / 2);
-                ctx.lineTo(roomElements[i].data.x2 + c.width / 2, roomElements[i].data.y2 + c.height / 2);
+                ctx.moveTo(roomElements[i].data.x1 + c.width / 2 - camera.x, roomElements[i].data.y1 + c.height / 2 - camera.y);
+                ctx.lineTo(roomElements[i].data.x2 + c.width / 2 - camera.x, roomElements[i].data.y2 + c.height / 2 - camera.y);
                 ctx.stroke();
                 ctx.lineCap = "flat";
                 ctx.lineWidth = 1;
