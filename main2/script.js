@@ -340,7 +340,7 @@ class MainPlayer extends Player {
 
         for (let shape = 0; shape < this.shapes.length; shape++) {
 
-
+            if (!this.shapes[shape]) continue;
 
             if (this.shapes[shape].length < 3) {
                 ctx.fillStyle = this.shapes[shape][0].x;

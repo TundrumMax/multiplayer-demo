@@ -200,6 +200,8 @@ io.on("connection", function (socket) {
     }
     clients[id].shapes[0] = [];
     clients[id].shape = 0;
+    clients[id].x = 0;
+    clients[id].y = 0;
     socket.leave(clients[id].room);
     socket.to(clients[id].room).emit("PlayerLeave", id);
     console.log(clients[id].name + " left room " + clients[id].room + " and joined " + room);
