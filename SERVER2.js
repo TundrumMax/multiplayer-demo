@@ -187,10 +187,10 @@ io.on("connection", function (socket) {
   //   socket.to("main").emit("EndShape", id)
   // })
   socket.on("UndoShape", () => {
-    clients[id].shapes.splice(clients[id].shape - 1, 1);
     clients[id].shape--;
     clients[id].shape = Math.max(clients[id].shape, 0);
-    clients[id].shapes[clients[id].shape] = [];
+    clients[id].shapes.splice(clients[id].shape, 1);
+    // clients[id].shapes[clients[id].shape] = []; //gotcha bitch
 
     socket.to("main").emit("UndoShape", id);
   })
